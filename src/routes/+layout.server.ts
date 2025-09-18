@@ -1,6 +1,5 @@
-import type { LayoutServerLoad, Actions } from './$types';
+import type { LayoutServerLoad } from './$types';
 import { createSupabaseServerClient } from '$lib/supabase.server';
-import { redirect } from '@sveltejs/kit';
 
 export const load: LayoutServerLoad = async (event) => {
 	const supabase = createSupabaseServerClient(event);
@@ -25,13 +24,5 @@ export const load: LayoutServerLoad = async (event) => {
 		return {
 			session: null
 		};
-	}
-};
-
-export const actions: Actions = {
-	logout: async (event) => {
-		const supabase = createSupabaseServerClient(event);
-		await supabase.auth.signOut();
-		redirect(302, '/');
 	}
 };

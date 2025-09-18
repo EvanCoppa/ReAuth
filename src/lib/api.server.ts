@@ -6,7 +6,7 @@ import { toastStore } from './toast';
 import type { AuthInfo } from './types';
 
 // DriveKind API Configuration
-export const API_BASE_URL = 'https://drive-kind-api.vercel.app/';
+export const API_BASE_URL = 'https://smile-design-manhattan-api.vercel.app';
 
 
 
