@@ -3,6 +3,7 @@
 
 	export let data: PageData;
     let UserInfo = JSON.stringify(data.user, null, 2)
+ 
 </script>
 
 <h1>Welcome to SvelteKit</h1>

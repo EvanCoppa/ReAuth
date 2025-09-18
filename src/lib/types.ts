@@ -15,6 +15,18 @@ export type TimeOffStatus = "Pending" | "Approved" | "Denied";
 export type DonationType = "Cash" | "Check" | "Online" | "Other";
 export type ReportType = "Appointments" | "Assigned Rides" | "Donations" | "Driver Performance" | "Client Usage" | "Financial";
 
+export interface Client {
+  clientid: number;
+  first_name: string;
+  last_name: string;
+  dob: string | null;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  org_id: number | null;
+  insurance_provider: string | null;
+}
+
 export interface User {
 	id: string;
 	email: string;

@@ -83,3 +83,7 @@ export async function authenticatedFetch(
 export async function getClients(authInfo?: AuthInfo, event?: RequestEvent): Promise<Response> {
   return await authenticatedFetch(`${API_BASE_URL}/clients`, {}, authInfo, event);
 }
+
+export async function deleteClientById(clientId: string, authInfo?: AuthInfo, event?: RequestEvent): Promise<Response> {
+  return await authenticatedFetch(`${API_BASE_URL}/clients/${clientId}`, { method: 'DELETE' }, authInfo, event);
+}
