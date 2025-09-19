@@ -16,6 +16,7 @@
   import { Label } from '$lib/components/ui/label';
   import { Card, CardContent, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { Badge } from '$lib/components/ui/badge';
+  import StatusTag from '$lib/components/ui/status-tag/StatusTag.svelte';
   import { generatePDF } from '$lib/api';
   import { toastStore } from '$lib/toast';
   import { enhance } from '$app/forms';
@@ -202,24 +203,7 @@
     }),
     columnHelper.accessor('payment_status', {
       header: 'Payment Status',
-      cell: info => {
-        const status = info.getValue();
-        const getStatusBadge = (status: string) => {
-          switch (status?.toLowerCase()) {
-            case 'paid_in_full':
-              return { variant: 'default', text: 'Paid in Full' };
-            case 'partially_paid':
-              return { variant: 'secondary', text: 'Partially Paid' };
-            case 'unpaid':
-              return { variant: 'destructive', text: 'Unpaid' };
-            default:
-              return { variant: 'outline', text: status || 'Unknown' };
-          }
-        };
-        
-        const { variant, text } = getStatusBadge(status);
-        return { variant, text };
-      },
+      cell: info => info.getValue() || 'Unknown',
       enableSorting: true,
     }),
     columnHelper.accessor('amount_paid', {
@@ -775,12 +759,7 @@
                     {#each row.getVisibleCells() as cell}
                       <TableCell>
                         {#if cell.column.id === 'payment_status'}
-                          {@const cellValue = cell.getValue()}
-                          {#if cellValue && typeof cellValue === 'object' && 'variant' in cellValue && 'text' in cellValue}
-                            <Badge variant={cellValue.variant as any}>{String(cellValue.text)}</Badge>
-                          {:else}
-                            <Badge variant="outline">{String(cellValue || 'Unknown')}</Badge>
-                          {/if}
+                          <StatusTag status={String(cell.getValue() || 'Unknown')} />
                         {:else}
                           <FlexRender
                             content={cell.column.columnDef.cell}
