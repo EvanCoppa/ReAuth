@@ -105,49 +105,45 @@ function calculateActivePlanPrice(treatmentPlan: TreatmentPlanDetails): number {
   return optionToUse.items.reduce((total, item) => total + (item.cost * item.quantity), 0);
 }
 
-export const load: PageServerLoad = async ({ cookies }) => {
+export const load: PageServerLoad = async ({ cookies, parent }) => {
   try {
-    // Get session data from server-side cookies
-    const userId = cookies.get('userId');
-    const accessToken = cookies.get('accessToken');
+    // Get session data from parent layout
+    const { session } = await parent();
     const orgId = cookies.get('orgId');
-    const authenticated = cookies.get('authenticated') === 'true';
-    
-    // if (!authenticated || !accessToken || !userId) {
-    //   throw new Error('User not authenticated');
-    // }
 
-    console.log("Cookies", {
-      userId,
-      accessToken,
-      authenticated
-    });
-    const token = accessToken;
-    
-    console.log('🔐 Treatment Plans: Server-side cookie check', {
-      hasUserId: !!userId,
-      userId: userId,
-      hasToken: !!token,
-      tokenPreview: token ? token.substring(0, 20) + '...' : 'none',
-      authenticated: authenticated,
-      cookieSource: 'server-side cookies (synced from client)'
-    });
-    
+    // If no valid session, return empty data - don't try to fetch data
+    if (!session?.access_token || !session?.user) {
+      console.log('[Treatment Plans] No valid session - returning empty data');
+      return {
+        treatmentPlans: [],
+        doctors: [],
+        userId: null,
+        profiles: [],
+        paymentStatusOptions: [],
+        error: 'Authentication required'
+      };
+    }
+
+    // Create authInfo object with fresh session token for API calls
+    const authInfo = {
+      token: session.access_token,
+      user: session.user
+    };
     // Fetch treatment plans, profiles, and payment status options in parallel
     const [treatmentPlansResponse, profilesResponse, paymentStatusOptions] = await Promise.all([
       authenticatedFetch(
         `${API_BASE_URL}/treatment-plans-summary`,
         { method: 'GET' },
-        undefined,
+        authInfo,
         cookies
       ),
       authenticatedFetch(
         `${API_BASE_URL}/profiles/org/${orgId}`,
         { method: 'GET' },
-        undefined,
+        authInfo,
         cookies
       ),
-      getPaymentStatusOptions(undefined, cookies)
+      getPaymentStatusOptions(authInfo, cookies)
     ]);
     
     if (!treatmentPlansResponse.ok) {
@@ -238,7 +234,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
     return {
       treatmentPlans,
       doctors,
-      userId,
+      userId: session.user.id,
       profiles,
       paymentStatusOptions
     };
