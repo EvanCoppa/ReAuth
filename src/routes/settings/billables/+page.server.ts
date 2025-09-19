@@ -11,12 +11,12 @@ export interface Billable {
   is_displayed: boolean | null;
 }
 
-async function fetchBillablesData(cookies: any): Promise<Billable[]> {
+async function fetchBillablesData(authInfo: any, cookies: any): Promise<Billable[]> {
   try {
     const response = await authenticatedFetch(
       `${API_BASE_URL}/billables`,
       { method: 'GET' },
-      undefined,
+      authInfo,
       cookies
     );
 
@@ -39,19 +39,32 @@ async function fetchBillablesData(cookies: any): Promise<Billable[]> {
   }
 }
 
-export const load: PageServerLoad = async ({ cookies }) => {
+export const load: PageServerLoad = async ({ cookies, parent }) => {
   try {
-    const userId = cookies.get('userId');
-    const accessToken = cookies.get('accessToken');
-    const authenticated = cookies.get('authenticated') === 'true';
+    // Get session data from parent layout
+    const { session } = await parent();
 
+    // If no valid session, return empty data
+    if (!session?.access_token || !session?.user) {
+      console.log('[Billables] No valid session - returning empty data');
+      return {
+        billables: [],
+        userId: null,
+        error: 'Authentication required'
+      };
+    }
 
-    const billables = await fetchBillablesData(cookies);
+    // Create authInfo object with fresh session token for API calls
+    const authInfo = {
+      token: session.access_token,
+      user: session.user
+    };
 
-  
+    const billables = await fetchBillablesData(authInfo, cookies);
+
     return {
       billables: billables as Billable[],
-      userId
+      userId: session.user.id
     };
 
   } catch (error) {

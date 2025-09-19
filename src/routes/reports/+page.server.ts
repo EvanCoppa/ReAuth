@@ -46,44 +46,49 @@ export interface TreatmentPlanReportData {
   } | null;
 }
 
-export const load: PageServerLoad = async ({ cookies }) => {
+export const load: PageServerLoad = async ({ cookies, parent }) => {
   try {
-    // Get session data from server-side cookies
-    const userId = cookies.get('userId');
-    const accessToken = cookies.get('accessToken');
-    const authenticated = cookies.get('authenticated') === 'true';
-    
-    if (!authenticated || !accessToken || !userId) {
-      throw new Error('User not authenticated');
+    // Get session data from parent layout
+    const { session } = await parent();
+
+    // If no valid session, return empty data
+    if (!session?.access_token || !session?.user) {
+      console.log('[Reports] No valid session - returning empty data');
+      return {
+        providers: [],
+        presenters: [],
+        creators: [],
+        userId: null,
+        error: 'Authentication required'
+      };
     }
 
-    console.log('🔐 Reports Page: Server-side cookie check', {
-      hasUserId: !!userId,
-      userId: userId,
-      hasToken: !!accessToken,
-      authenticated: authenticated,
-    });
-    
+    // Create authInfo object with fresh session token for API calls
+    const authInfo = {
+      token: session.access_token,
+      user: session.user
+    };
+
     // Fetch providers, presenters, and creators in parallel
     const [providersResponse, presentersResponse, creatorsResponse] = await Promise.all([
       authenticatedFetch(
         `${API_BASE_URL}/providers`,
         { method: 'GET' },
-        undefined,
+        authInfo,
         cookies
       ),
       // Get unique presenters from treatment plans
       authenticatedFetch(
         `${API_BASE_URL}/presenters`,
         { method: 'GET' },
-        undefined,
+        authInfo,
         cookies
       ).catch(() => null),
       // Get unique creators from treatment plans
       authenticatedFetch(
         `${API_BASE_URL}/creators`,
         { method: 'GET' },
-        undefined,
+        authInfo,
         cookies
       ).catch(() => null)
     ]);
@@ -151,7 +156,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
       providers,
       presenters,
       creators,
-      userId
+      userId: session.user.id
     };
 
   } catch (error) {
@@ -167,7 +172,8 @@ export const load: PageServerLoad = async ({ cookies }) => {
 };
 
 export const actions: Actions = {
-  fetchTreatmentPlans: async ({ request, cookies }) => {
+  fetchTreatmentPlans: async (event) => {
+    const { request, cookies } = event;
     try {
       const formData = await request.formData();
       const filterType = formData.get('filterType') as string;
@@ -226,7 +232,8 @@ export const actions: Actions = {
 
       console.log('📡 Reports Action: Making API request to', endpoint);
 
-      const response = await authenticatedFetch(endpoint, { method: 'GET' }, undefined, cookies);
+      // Pass the full event so authenticatedFetch can access session data
+      const response = await authenticatedFetch(endpoint, { method: 'GET' }, undefined, event);
 
       if (!response.ok) {
         const errorText = await response.text();

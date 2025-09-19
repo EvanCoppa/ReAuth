@@ -173,20 +173,20 @@ async function getClientsData(token: string, userId: string): Promise<Client[]> 
     return clients;
 }
 
-export const load: PageServerLoad = async ({ params, cookies }) => {
+export const load: PageServerLoad = async ({ params, cookies, parent }) => {
   const treatmentPlanId = params.id;
 
-  // Get session data from server-side cookies
-  const userId = cookies.get('userId');
-  const accessToken = cookies.get('accessToken');
+  // Get session data from parent layout
+  const { session } = await parent();
   const orgId = cookies.get('orgId');
-  const authenticated = cookies.get('authenticated') === 'true';
-  
-  if (!authenticated || !accessToken || !userId || !orgId) {
-      throw error(401, 'User not authenticated or missing org info');
+
+  // If no valid session, throw error
+  if (!session?.access_token || !session?.user || !orgId) {
+    throw error(401, 'Authentication required or missing organization info');
   }
 
-  const token = accessToken;
+  const token = session.access_token;
+  const userId = session.user.id;
 
   try {
     // Fetch visit data (which contains treatment plan)

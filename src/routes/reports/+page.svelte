@@ -47,6 +47,7 @@
 
   // Table state
   let globalFilter = $state('');
+  let presenterFilter = $state('');
   let sorting = $state<SortingState>([{ id: 'created_at', desc: true }]);
   let rowSelection = $state<RowSelectionState>({});
 
@@ -113,6 +114,21 @@
     }, 0);
   };
 
+  // Get unique presenters from current treatment plans
+  const getUniquePresenterOptions = () => {
+    const uniquePresenters = new Set<string>();
+    treatmentPlans.forEach(plan => {
+      if (plan.presenter_id) {
+        const presenter = data.presenters.find(p => p.auth_user_id === plan.presenter_id);
+        const presenterName = presenter ? `${presenter.first_name} ${presenter.last_name}` : plan.presenter_id.substring(0, 8);
+        uniquePresenters.add(presenterName);
+      } else {
+        uniquePresenters.add('None');
+      }
+    });
+    return Array.from(uniquePresenters).sort();
+  };
+
   // Update treatment plans and totals when form result changes
   $effect(() => {
     if (form?.success && form.treatmentPlans) {
@@ -149,6 +165,8 @@
     totalAmountPaid = 0;
     fromDate = '';
     toDate = '';
+    globalFilter = '';
+    presenterFilter = '';
   });
 
   // Define table columns
@@ -221,6 +239,18 @@
       },
       enableSorting: true,
     }),
+    columnHelper.accessor(row => {
+      if (row.presenter_id) {
+        const presenter = data.presenters.find(p => p.auth_user_id === row.presenter_id);
+        return presenter ? `${presenter.first_name} ${presenter.last_name}` : row.presenter_id.substring(0, 8);
+      }
+      return 'None';
+    }, {
+      id: 'presenter_name',
+      header: 'Presenter',
+      cell: info => info.getValue(),
+      enableSorting: true,
+    }),
     columnHelper.accessor(row => row.created_by_profile ? `${row.created_by_profile.first_name} ${row.created_by_profile.last_name}` : row.created_by?.substring(0, 8) || 'Unknown', {
       id: 'created_by_name',
       header: 'Created By',
@@ -231,7 +261,18 @@
 
   // Create table
   const table = createSvelteTable({
-    get data() { return treatmentPlans; },
+    get data() {
+      // Apply presenter filter to the data
+      if (presenterFilter === '') {
+        return treatmentPlans;
+      }
+      return treatmentPlans.filter(plan => {
+        const presenterName = plan.presenter_id
+          ? (data.presenters.find(p => p.auth_user_id === plan.presenter_id)?.first_name + ' ' + data.presenters.find(p => p.auth_user_id === plan.presenter_id)?.last_name) || plan.presenter_id.substring(0, 8)
+          : 'None';
+        return presenterName === presenterFilter;
+      });
+    },
     columns,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -375,18 +416,25 @@
       return;
     }
 
-    const headers = ['Patient Name', 'Created Date', 'Doctor', 'Payment Status', 'Amount Paid', 'Plan Cost', 'Created By'];
+    const headers = ['Patient Name', 'Created Date', 'Doctor', 'Payment Status', 'Amount Paid', 'Plan Cost', 'Presenter', 'Created By'];
     const csvContent = [
       headers.join(','),
-      ...treatmentPlans.map(plan => [
-        `"${plan.patient_name || 'Unknown'}"`,
-        `"${plan.created_at ? new Date(plan.created_at).toLocaleDateString() : 'Unknown'}"`,
-        `"${plan.doctor_name || 'Unknown'}"`,
-        `"${plan.payment_status || 'Unknown'}"`,
-        plan.amount_paid || 0,
-        plan.options?.[0]?.total_cost || 0,
-        `"${plan.created_by_profile ? `${plan.created_by_profile.first_name} ${plan.created_by_profile.last_name}` : plan.created_by?.substring(0, 8) || 'Unknown'}"`
-      ].join(','))
+      ...treatmentPlans.map(plan => {
+        const presenterName = plan.presenter_id
+          ? (data.presenters.find(p => p.auth_user_id === plan.presenter_id)?.first_name + ' ' + data.presenters.find(p => p.auth_user_id === plan.presenter_id)?.last_name) || plan.presenter_id.substring(0, 8)
+          : 'None';
+
+        return [
+          `"${plan.patient_name || 'Unknown'}"`,
+          `"${plan.created_at ? new Date(plan.created_at).toLocaleDateString() : 'Unknown'}"`,
+          `"${plan.doctor_name || 'Unknown'}"`,
+          `"${plan.payment_status || 'Unknown'}"`,
+          plan.amount_paid || 0,
+          plan.options?.[0]?.total_cost || 0,
+          `"${presenterName}"`,
+          `"${plan.created_by_profile ? `${plan.created_by_profile.first_name} ${plan.created_by_profile.last_name}` : plan.created_by?.substring(0, 8) || 'Unknown'}"`
+        ].join(',');
+      })
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -629,9 +677,9 @@
     bind:this={formElement}
     method="POST"
     action="?/fetchTreatmentPlans"
-    use:enhance={({ submitting }) => {
-      isLoading = submitting;
-      return async ({ result, update }) => {
+    use:enhance={() => {
+      isLoading = true;
+      return async ({ update }) => {
         isLoading = false;
         await update();
       };
@@ -670,14 +718,28 @@
       
       {#if treatmentPlans.length > 0}
         <CardContent class="space-y-4">
-          <!-- Search -->
-          <div class="flex items-center gap-2">
-            <SearchIcon class="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search treatment plans..."
-              bind:value={globalFilter}
-              class="max-w-sm"
-            />
+          <!-- Search and Filter -->
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+              <SearchIcon class="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search treatment plans..."
+                bind:value={globalFilter}
+                class="max-w-sm"
+              />
+            </div>
+            <div class="flex items-center gap-2">
+              <PresentationIcon class="h-4 w-4 text-muted-foreground" />
+              <select
+                bind:value={presenterFilter}
+                class="px-3 py-2 border border-input bg-background text-sm rounded-md focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 min-w-[150px]"
+              >
+                <option value="">All Presenters</option>
+                {#each getUniquePresenterOptions() as presenterName}
+                  <option value={presenterName}>{presenterName}</option>
+                {/each}
+              </select>
+            </div>
           </div>
 
           <!-- Printable Content -->

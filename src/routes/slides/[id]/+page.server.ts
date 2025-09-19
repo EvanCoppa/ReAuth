@@ -65,29 +65,29 @@ export interface VisitApiResponse {
   data: VisitData;
 }
 
-export const load: PageServerLoad = async ({ params, cookies }) => {
+export const load: PageServerLoad = async ({ params, cookies, parent }) => {
   try {
     const { id } = params;
 
-    // Get session data from server-side cookies
-    const userId = cookies.get('userId');
-    const accessToken = cookies.get('accessToken');
-    const authenticated = cookies.get('authenticated') === 'true';
+    // Get session data from parent layout
+    const { session } = await parent();
 
-    console.log('🔐 New Slides: Server-side cookie check', {
-      hasUserId: !!userId,
-      userId: userId,
-      hasToken: !!accessToken,
-      tokenPreview: accessToken ? accessToken.substring(0, 20) + '...' : 'none',
-      authenticated: authenticated,
-      visitId: id
-    });
+    // If no valid session, throw error
+    if (!session?.access_token || !session?.user) {
+      throw error(401, 'Authentication required');
+    }
+
+    // Create authInfo object with fresh session token for API calls
+    const authInfo = {
+      token: session.access_token,
+      user: session.user
+    };
 
     // Fetch visit data using server-side authentication
     const response = await authenticatedFetch(
       `${API_BASE_URL}/visits/${id}`,
       { method: 'GET' },
-      undefined,
+      authInfo,
       cookies
     );
 

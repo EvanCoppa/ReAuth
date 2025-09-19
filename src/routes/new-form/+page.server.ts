@@ -206,18 +206,30 @@ async function getProfilesData(token: string, userId: string, orgId: string): Pr
     return profiles;
 }
 
-export const load: PageServerLoad = async ({ cookies }) => {
-    // Get session data from server-side cookies
-    const userId = cookies.get('userId');
-    const accessToken = cookies.get('accessToken');
+export const load: PageServerLoad = async ({ cookies, parent }) => {
+    // Get session data from parent layout
+    const { session } = await parent();
     const orgId = cookies.get('orgId');
-    const authenticated = cookies.get('authenticated') === 'true';
-    
-    if (!authenticated || !accessToken || !userId || !orgId) {
-        throw new Error('User not authenticated or missing org info');
+
+    // If no valid session, return empty data
+    if (!session?.access_token || !session?.user || !orgId) {
+        console.log('[New Form] No valid session or org info - returning empty data');
+        return {
+            providers: [],
+            billables: [],
+            activeBillables: [],
+            quickPlans: [],
+            treatments: [],
+            clients: [],
+            profiles: [],
+            orgId: null,
+            userId: null,
+            error: 'Authentication required or missing organization info'
+        };
     }
 
-    const token = accessToken;
+    const token = session.access_token;
+    const userId = session.user.id;
 
     const [providers, billables, activeBillables, quickPlans, treatments, clients, profiles] = await Promise.all([
         getProviderData(token, userId),
@@ -229,7 +241,17 @@ export const load: PageServerLoad = async ({ cookies }) => {
         getProfilesData(token, userId, orgId)
     ]);
 
-    return { providers, billables, activeBillables, quickTreatmentPlans: quickPlans, treatments, clients, profiles };
+    return {
+        providers,
+        billables,
+        activeBillables,
+        quickTreatmentPlans: quickPlans,
+        treatments,
+        clients,
+        profiles,
+        orgId,
+        userId: session.user.id
+    };
 };
 
 
@@ -265,20 +287,19 @@ async function convertFileToBase64(file: File): Promise<string> {
 
 // Actions for form submission
 export const actions: Actions = {
-    createVisit: async ({ request, cookies }) => {
+    createVisit: async (event) => {
         console.log('=== FORM SUBMISSION START ===');
+        const { request, cookies } = event;
 
-        const userId = cookies.get('userId');
-        const accessToken = cookies.get('accessToken');
+        // Get orgId from cookies since it's not in session
         const orgId = cookies.get('orgId');
-        const authenticated = cookies.get('authenticated') === 'true';
 
-        console.log('Auth check:', { userId, accessToken: !!accessToken, orgId, authenticated });
-
-        if (!authenticated || !accessToken || !userId || !orgId) {
-            console.log('AUTH FAILED: Missing credentials');
-            return fail(401, { error: 'User not authenticated' });
+        if (!orgId) {
+            console.log('AUTH FAILED: Missing org info');
+            return fail(401, { error: 'Missing organization information' });
         }
+
+        // authenticatedFetch will handle getting fresh session tokens from the event
 
         console.log('Getting form data...');
         const formData = await request.formData();
@@ -362,7 +383,7 @@ export const actions: Actions = {
                     insurance_coverage: insuranceCoverage,
                     courtesy_amount: courtesyAmount,
                     org_id: parseInt(orgId, 10),
-                    created_by: userId,
+                    created_by: 'system', // Will be set by API based on session
                     presenter_id: selectedPresenterId,
                     options: treatmentPlans,
                     images: []
@@ -384,7 +405,7 @@ export const actions: Actions = {
                     body: JSON.stringify(payload)
                 },
                 undefined,
-                cookies
+                event
             );
 
             console.log('Visit response status:', res.status);

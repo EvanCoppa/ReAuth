@@ -20,14 +20,35 @@ interface Billable {
 	code: string;
 }
 
-export const load: PageServerLoad = async ({ cookies }) => {
+export const load: PageServerLoad = async ({ cookies, parent }) => {
 	try {
+		// Get session data from parent layout
+		const { session } = await parent();
+
+		// If no valid session, return empty data
+		if (!session?.access_token || !session?.user) {
+			console.log('[Settings Form] No valid session - returning empty data');
+			return {
+				providers: [],
+				billables: [],
+				displayCodes: [],
+				quickPlans: [],
+				error: 'Authentication required'
+			};
+		}
+
+		// Create authInfo object with fresh session token for API calls
+		const authInfo = {
+			token: session.access_token,
+			user: session.user
+		};
+
 		// Load all data in parallel
 		const [providersRes, billablesRes, displayCodesRes, quickPlansRes] = await Promise.all([
-			authenticatedFetch(`${API_BASE_URL}/providers`, {}, undefined, cookies),
-			authenticatedFetch(`${API_BASE_URL}/billables`, {}, undefined, cookies),
-			authenticatedFetch(`${API_BASE_URL}/settings/display-codes`, {}, undefined, cookies),
-			authenticatedFetch(`${API_BASE_URL}/quick-plans`, {}, undefined, cookies)
+			authenticatedFetch(`${API_BASE_URL}/providers`, {}, authInfo, cookies),
+			authenticatedFetch(`${API_BASE_URL}/billables`, {}, authInfo, cookies),
+			authenticatedFetch(`${API_BASE_URL}/settings/display-codes`, {}, authInfo, cookies),
+			authenticatedFetch(`${API_BASE_URL}/quick-plans`, {}, authInfo, cookies)
 		]);
 
 		// Process providers
