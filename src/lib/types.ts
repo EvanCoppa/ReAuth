@@ -52,8 +52,7 @@ export interface User {
   created_at: Date;
   updated_at: Date;
 }
- import type { Client } from './types/client';
-
+ 
 export interface Provider {
   id: number;
   prefix: string;
