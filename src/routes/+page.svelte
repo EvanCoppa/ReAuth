@@ -1,50 +1,123 @@
 <script lang="ts">
-	import type { PageData, ActionData } from './$types';
+  // import { onMount } from "svelte";
 
-	export let data: PageData;
-	export let form: ActionData;
-    let UserInfo = JSON.stringify(data.user, null, 2)
+  // let windowWidth: number = $state(0);
 
+  // onMount(() => {
+  //   windowWidth = window.innerWidth;
+  // window.addEventListener('resize', () => windowWidth = window.innerWidth);
+  //   // document.documentElement.style.width = "";
+  //   // document.body.style.width = "";
+  //   // document.body.style.overflowX = "";
+    
+
+  // });
+ 
 </script>
 
-<h1>Welcome to SvelteKit</h1>
+<div class="w-full flex flex-col text-center space-y-8 bg-white h-screen md:p-24 px-6 py-12" id="landing">
+  <!-- Icon -->
 
-{#if data.user}
-	<div>
-		<h2>User Information:</h2>
-		<!-- <pre>{UserInfo}</pre> -->
+  <div class="flex justify-center">
+    <div class="w-18 h-18 bg-black text-white text-4xl flex items-center justify-center rounded-xl shadow-md font-bold">
+      <img src="https://zicozssqsqoyyzyhmjmv.supabase.co/storage/v1/object/sign/photos/logo.svg?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV82MTk4Y2EwOC00YmJiLTQ5ODgtYTdjOS1mM2I2NzViZTIzMWYiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJwaG90b3MvbG9nby5zdmciLCJpYXQiOjE3NTU2MjI2NjUsImV4cCI6MTc4NzE1ODY2NX0.XRizHSrXZWdCQYoSqkWBv_v9Q5BTDCjGKArRuhjfPho" alt="" class="h-[80%]" style="filter: invert(1);" />
+    </div>
+  </div>
 
-		<form method="POST" action="?/logout">
-			<button type="submit">Logout</button>
-		</form>
+  <!-- Headline -->
+  <h1 class="text-5xl mb-2 font-bold leading-tight">Patient Advocate</h1>
+  <p class="font-extralight text-gray-600">An application for creating speedy professional dental proposals</p>
 
-		<form method="POST" action="?/testProfiles">
-			<button type="submit">Test Fetch Profiles</button>
-		</form>
+  <!-- Features -->
+  <div class="flex flex-col md:flex-row flex-wrap justify-center gap-4 text-sm sm:text-base text-gray-700 max-w-[500px] mx-auto">
+    <div class="flex items-center gap-2">
+      <div class="rounded-full bg-black h-7 w-7 flex"><span class="m-auto text-white">&#10003;</span></div>
+      <span>Optimality</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="rounded-full bg-black h-7 w-7 flex"><span class="m-auto text-white">&#10003;</span></div>
+      <span>Team Collaboration</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="rounded-full bg-black h-7 w-7 flex"><span class="m-auto text-white">&#10003;</span></div>
+      <span>Transparent Recordkeeping</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <div class="rounded-full bg-black h-7 w-7 flex"><span class="m-auto text-white">&#10003;</span></div>
+      <span>Financing Options</span>
+    </div>
+  </div>
+  <div class="flex mx-auto justify-around">
+    <div class="flex gap-5">
+      <div>
+        <a href="/new-form" class="text-sm md:text-md  inline-block bg-black hover:scale-105 text-white px-6 py-3.5 rounded-lg font-semibold shadow-md transition-transform duration-200 animate-wiggle">
+          Create Your Proposal
+        </a>
+      </div>
+      <div>
+        <a
+          href="/dentist-info"
+          class="text-sm md:text-md inline-block text-black border-2 px-6 py-3 rounded-lg font-semibold shadow-md transition hover:scale-105 animate-jump"
+        >
+          Get Help With Your Proposal
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
 
-		<form method="POST" action="?/getUser">
-			<button type="submit">Get Current User</button>
-		</form>
-
-		{#if form?.success !== undefined}
-			<div style="margin-top: 20px; padding: 10px; border: 1px solid #ccc; background: #f9f9f9;">
-				<h3>Get User Results:</h3>
-				{#if form.success}
-					<p><strong>Success:</strong> User data retrieved</p>
-					<pre>{JSON.stringify(form.user, null, 2)}</pre>
-					{#if form.error}
-						<p><strong>Note:</strong> {JSON.stringify(form.error, null, 2)}</p>
-					{/if}
-				{:else}
-					<p><strong>Error:</strong> {form.error}</p>
-				{/if}
-			</div>
-		{/if}
-	</div>
-{:else}
-	<p>No user logged in</p>
-{/if}
-
-
-<a href="/login">Login</a>
-<p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
+<style>
+  @keyframes wiggle {
+    0% {
+      transform: rotate(-1deg) scale(1.02);
+    }
+    20% {
+      transform: rotate(1deg) scale(1.03);
+    }
+    40% {
+      transform: rotate(-2deg) scale(1.05);
+    }
+    60% {
+      transform: rotate(2deg) scale(1.05);
+    }
+    80% {
+      transform: rotate(-2deg) scale(1.05);
+    }
+    100% {
+      transform: rotate(0deg) scale(1);
+    }
+  }
+  .animate-wiggle:hover {
+    animation: wiggle 0.6s;
+  }
+  @keyframes jump {
+    0% {
+      transform: translateY(0);
+      animation-timing-function: ease-in;
+    }
+    20% {
+      transform: translateY(-2px);
+      animation-timing-function: ease-out;
+    }
+    40% {
+      transform: translateY(-8px);
+      animation-timing-function: ease-in;
+    }
+    60% {
+      transform: translateY(-6px);
+      animation-timing-function: ease-out;
+    }
+    80% {
+      transform: translateY(-2px);
+      animation-timing-function: ease-in;
+    }
+    100% {
+      transform: translateY(0);
+      animation-timing-function: ease-out;
+    }
+  }
+  .animate-jump:hover {
+    animation: jump 0.6s;
+  }
+  
+</style>

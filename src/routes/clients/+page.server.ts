@@ -116,21 +116,21 @@ export const load: PageServerLoad = async ({ cookies }) => {
     const accessToken = cookies.get('accessToken');
     const authenticated = cookies.get('authenticated') === 'true';
     
-    console.log('🔐 Clients: Server-side cookie check', {
-      hasUserId: !!userId,
-      userId: userId,
-      hasToken: !!accessToken,
-      tokenPreview: accessToken ? accessToken.substring(0, 20) + '...' : 'none',
-      authenticated: authenticated,
-      cookieSource: 'server-side cookies (synced from client)'
-    });
+    // console.log('🔐 Clients: Server-side cookie check', {
+    //   hasUserId: !!userId,
+    //   userId: userId,
+    //   hasToken: !!accessToken,
+    //   tokenPreview: accessToken ? accessToken.substring(0, 20) + '...' : 'none',
+    //   authenticated: authenticated,
+    //   cookieSource: 'server-side cookies (synced from client)'
+    // });
     
     const clients = await fetchClientsData(cookies);
 
-    console.log('✅ Clients: Loaded data', {
-      totalClients: clients.length,
-      sampleClient: clients[0] || null
-    });
+    // console.log('✅ Clients: Loaded data', {
+    //   totalClients: clients.length,
+    //   sampleClient: clients[0] || null
+    // });
 
     return {
       clients: clients as Client[],
@@ -185,7 +185,7 @@ export const actions: Actions = {
       }
 
       const result = await response.json();
-      console.log('✅ Client created:', result);
+      // console.log('✅ Client created:', result);
 
       // Refresh the client list after creation
       const updatedClients = await fetchClientsData(cookies);
@@ -207,14 +207,14 @@ export const actions: Actions = {
   refresh: async ({ cookies }) => {
     try {
       const clients = await fetchClientsData(cookies);
-      console.log('🔄 Clients refreshed:', clients.length);
+      // console.log('🔄 Clients refreshed:', clients.length);
       
       return {
         success: true,
         clients: clients as Client[]
       };
     } catch (error) {
-      console.error('Error refreshing clients:', error);
+      // console.error('Error refreshing clients:', error);
       return {
         success: false,
         error: 'Failed to refresh clients'

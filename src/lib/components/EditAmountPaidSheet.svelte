@@ -137,20 +137,40 @@
 				formData.set('courtesyAmount', `${treatmentPlan.treatment_plan.courtesy_amount ?? 0}`);
 
 				return async ({ result, update }) => {
+					const payload = 'data' in result ? result.data : undefined;
+					const data = (payload ?? {}) as {
+						success?: boolean;
+						visitId?: number | string;
+						amountPaid?: number | string;
+						notes?: string;
+						paymentStatus?: string;
+						activePlan?: number | string | null;
+						presenterId?: string | null;
+						error?: string;
+					};
+
 					try {
-						if (result.type === 'success' && result.data?.success) {
+						if (result.type === 'success' && data.success) {
 							toastStore.success('Treatment plan updated successfully.');
+							const normalizedVisitId = Number(data.visitId ?? treatmentPlan?.visitid ?? 0);
+							const normalizedAmountPaid = Number(data.amountPaid ?? tempAmountPaid);
+							const normalizedNotes = data.notes ?? tempNotes;
+							const normalizedPaymentStatus = data.paymentStatus ?? tempPaymentStatus;
+							const normalizedActivePlan = data.activePlan != null ? Number(data.activePlan) : null;
 							onUpdate(
-								Number(result.data.visitId),
-								Number(result.data.amountPaid),
-								result.data.notes ?? tempNotes,
-								result.data.paymentStatus ?? tempPaymentStatus,
-								result.data.activePlan ?? null
+								normalizedVisitId,
+								normalizedAmountPaid,
+								normalizedNotes,
+								normalizedPaymentStatus,
+								normalizedActivePlan
 							);
-							tempPresenterId = result.data.presenterId ?? tempPresenterId;
+							tempPresenterId = typeof data.presenterId === 'string' ? data.presenterId : tempPresenterId;
 							handleClose();
 						} else if (result.type === 'failure') {
-							toastStore.error(result.data?.error || 'Failed to update treatment plan. Please try again.');
+							const errorMessage = typeof data.error === 'string'
+								? data.error
+								: 'Failed to update treatment plan. Please try again.';
+							toastStore.error(errorMessage);
 						} else if (result.type === 'error') {
 							toastStore.error(result.error?.message || 'Failed to update treatment plan.');
 						}

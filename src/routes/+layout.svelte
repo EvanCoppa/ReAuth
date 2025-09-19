@@ -73,7 +73,7 @@
 
   // Handle navigation spinner delay
   $effect(() => {
-    let timeoutId: number;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     if ($navigating) {
       // Start a timer to show spinner after 500ms if still navigating
@@ -87,12 +87,14 @@
       showNavigationSpinner = false;
       if (timeoutId) {
         clearTimeout(timeoutId);
+        timeoutId = undefined;
       }
     }
 
     return () => {
       if (timeoutId) {
         clearTimeout(timeoutId);
+        timeoutId = undefined;
       }
     };
   });
