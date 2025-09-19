@@ -521,8 +521,8 @@ export const actions: Actions = {
             console.log('=== REDIRECTING ===');
             // Redirect based on user choice
             if (redirectTo === 'slides' && visitResponse.visitid) {
-                console.log('Redirecting to slides:', `/new-slides/${visitResponse.visitid}`);
-                throw redirect(303, `/new-slides/${visitResponse.visitid}`);
+                console.log('Redirecting to slides:', `/slides/${visitResponse.visitid}`);
+                throw redirect(303, `/slides/${visitResponse.visitid}`);
             } else {
                 console.log('Redirecting to treatment plans');
                 throw redirect(303, '/treatment-plans');

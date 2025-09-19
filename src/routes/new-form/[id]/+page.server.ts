@@ -423,11 +423,11 @@ export const actions: Actions = {
                     // Continue with success but note image upload failure
                 }
             }
-            console.log('Redirecting to:', redirectTo === 'slides' ? `/new-slides/${visitId}` : '/treatment-plans');
+            console.log('Redirecting to:', redirectTo === 'slides' ? `/slides/${visitId}` : '/treatment-plans');
             // Return success with redirect info instead of throwing
             return {
                 success: true,
-                redirectTo: redirectTo === 'slides' ? `/new-slides/${visitId}` : '/treatment-plans'
+                redirectTo: redirectTo === 'slides' ? `/slides/${visitId}` : '/treatment-plans'
             };
 
         } catch (error) {

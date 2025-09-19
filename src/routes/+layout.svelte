@@ -117,10 +117,6 @@
 
 {#if page?.url?.pathname?.startsWith("/slides") || page?.url?.pathname?.startsWith("/print")}
   <div in:fade={{ duration: 100 }} out:fade={{ duration: 100 }}>
-     {@render children()}
-  </div>
-{:else if page?.url?.pathname?.startsWith("/new-slides")}
-  <div in:fade={{ duration: 100 }} out:fade={{ duration: 100 }}>
      <FloatingMenu />
      {@render children()}
   </div>

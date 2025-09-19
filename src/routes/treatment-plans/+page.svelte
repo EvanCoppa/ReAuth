@@ -266,7 +266,7 @@
   }
 
   function viewVisit(visit: TreatmentPlan) {
-    goto(`/new-slides/${visit.visitid}`);
+    goto(`/slides/${visit.visitid}`);
   }
 
   function editVisit(visit: TreatmentPlan) {
