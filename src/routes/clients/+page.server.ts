@@ -1,28 +1,11 @@
-import { API_BASE_URL, authenticatedFetch, getClients, deleteClientById } from '$lib/api.server';
-import type { Client } from '$lib/types';
+import { createClient, deleteClientById, getClients, updateClient } from '$lib/api.server';
+import type { Client, ClientPayload } from '$lib/types';
 import type { Actions, PageServerLoad } from './$types';
+import type { Cookies } from '@sveltejs/kit';
 
-async function fetchClientsData(cookies: any): Promise<Client[]> {
+async function fetchClientsData(cookies: Cookies): Promise<Client[]> {
   try {
-    const response = await authenticatedFetch(
-      `${API_BASE_URL}/clients`,
-      { method: 'GET' },
-      undefined,
-      cookies
-    );
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('🚨 Clients API Error:', {
-        status: response.status,
-        statusText: response.statusText,
-        errorBody: errorText
-      });
-      throw new Error(`Failed to fetch clients: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const clients: Client[] = data.data || [];
+    const clients = await getClients(undefined, cookies);
     return clients;
   } catch (error) {
     console.error('Error fetching clients:', error);
@@ -168,7 +151,7 @@ export const actions: Actions = {
   create: async ({ request, cookies }) => {
     try {
       const formData = await request.formData();
-      const clientData = {
+      const clientData: ClientPayload = {
         first_name: formData.get('first_name') as string,
         last_name: formData.get('last_name') as string,
         dob: formData.get('dob') as string || null,
@@ -186,7 +169,7 @@ export const actions: Actions = {
         };
       }
 
-      const response = await getClients(undefined, { cookies });
+      const response = await createClient(clientData, undefined, cookies);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -300,7 +283,7 @@ export const actions: Actions = {
     try {
       const formData = await request.formData();
       const clientId = formData.get('clientId') as string;
-      const clientData = {
+      const clientData: ClientPayload = {
         first_name: formData.get('first_name') as string,
         last_name: formData.get('last_name') as string,
         dob: formData.get('dob') as string || null,
@@ -318,18 +301,7 @@ export const actions: Actions = {
         };
       }
 
-      const response = await authenticatedFetch(
-        `${API_BASE_URL}/clients/${clientId}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(clientData)
-        },
-        undefined,
-        cookies
-      );
+      const response = await updateClient(clientId, clientData, undefined, cookies);
 
       if (!response.ok) {
         const errorText = await response.text();

@@ -53,5 +53,24 @@ export const actions: Actions = {
 				error: `Error fetching profiles: ${error instanceof Error ? error.message : 'Unknown error'}`
 			};
 		}
+	},
+
+	getUser: async (event) => {
+		const supabase = createSupabaseServerClient(event);
+
+		try {
+			const { data: { user }, error } = await supabase.auth.getUser();
+
+			return {
+				success: true,
+				user,
+				error
+			};
+		} catch (error) {
+			return {
+				success: false,
+				error: `Error getting user: ${error instanceof Error ? error.message : 'Unknown error'}`
+			};
+		}
 	}
 };

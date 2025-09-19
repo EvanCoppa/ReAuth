@@ -4,8 +4,8 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Sheet from '$lib/components/ui/sheet';
-	import { toastStore } from '$lib/stores/toast';
-	import type { PaymentStatusOption } from '$lib/api';
+	import { toastStore } from '$lib/toast';
+	import type { PaymentStatusOption } from '$lib/types';
 	import type { TreatmentPlan } from '../../routes/treatment-plans/+page.server';
 
   interface Props {
