@@ -1,4 +1,4 @@
-import { error, fail, redirect } from '@sveltejs/kit';
+import { error, fail } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import type { Provider, Billable, QuickTreatmentPlan, Profile } from '$lib/types';
 import type { Client } from '$lib/types';
@@ -424,12 +424,11 @@ export const actions: Actions = {
                 }
             }
             console.log('Redirecting to:', redirectTo === 'slides' ? `/new-slides/${visitId}` : '/treatment-plans');
-            // Redirect based on user choice
-            if (redirectTo === 'slides') {
-                throw redirect(303, `/new-slides/${visitId}`);
-            } else {
-                throw redirect(303, '/treatment-plans');
-            }
+            // Return success with redirect info instead of throwing
+            return {
+                success: true,
+                redirectTo: redirectTo === 'slides' ? `/new-slides/${visitId}` : '/treatment-plans'
+            };
 
         } catch (error) {
             if (error instanceof Response) {

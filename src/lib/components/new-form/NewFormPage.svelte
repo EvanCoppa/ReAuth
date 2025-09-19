@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PageData, ActionData } from "../../../routes/new-form/$types";
   import { enhance } from '$app/forms';
+  import { goto } from '$app/navigation';
   import { toastStore } from "$lib/toast";
   import * as Card from "$lib/components/ui/card/index.js";
   import PatientInfoSection from "$lib/components/new-form/InfoSection.svelte";
@@ -233,7 +234,13 @@
       class="flex flex-col gap-6"
       method="POST"
       action={isEditing ? "?/updateVisit" : "?/createVisit"}
-      use:enhance
+      use:enhance={() => {
+        return async ({ result }) => {
+          if (result.type === 'success' && result.data?.redirectTo) {
+            await goto(result.data.redirectTo);
+          }
+        };
+      }}
       enctype="multipart/form-data"
     >
       <!-- Hidden inputs for form data that needs to be preserved -->
@@ -282,7 +289,13 @@
     <form
       method="POST"
       action={isEditing ? "?/updateVisit" : "?/createVisit"}
-      use:enhance
+      use:enhance={() => {
+        return async ({ result }) => {
+          if (result.type === 'success' && result.data?.redirectTo) {
+            await goto(result.data.redirectTo);
+          }
+        };
+      }}
       enctype="multipart/form-data"
       class="mt-3"
     >

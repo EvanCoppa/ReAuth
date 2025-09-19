@@ -2,12 +2,15 @@ import type { Cookies, RequestEvent } from '@sveltejs/kit';
 import { createSupabaseServerClient } from './supabase.server';
 import { toastStore } from './toast';
 
-import type { AuthInfo, Client, ClientPayload, PaymentStatusOption } from './types';
+import type { Client, ClientPayload, PaymentStatusOption } from './types';
 
 // DriveKind API Configuration
 export const API_BASE_URL = 'https://smile-design-manhattan-api.vercel.app';
 
-
+export interface AuthInfo {
+  token?: string;
+  user?: any;
+}
 
 type EventContext = RequestEvent | Cookies | undefined;
 
@@ -23,6 +26,11 @@ function isCookies(value: EventContext): value is Cookies {
     typeof (value as Cookies).get === 'function'
   );
 }
+export interface AuthInfo {
+  token?: string;
+  user?: any;
+}
+
 
 export async function authenticatedFetch(
   url: string,
