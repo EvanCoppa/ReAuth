@@ -1,10 +1,10 @@
 import { createSupabaseServerClient } from '$lib/supabase.server';
-import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
+import { redirect, fail } from '@sveltejs/kit';
+import type { PageServerLoad, Actions } from './$types';
 
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async (event) => {
   try {
-    const supabase = createSupabaseServerClient(url.searchParams as any);
+    const supabase = createSupabaseServerClient(event);
     // Get current user session
     const session = await supabase.auth.getSession();
     const token = session.data?.session?.access_token;
@@ -56,5 +56,32 @@ export const load: PageServerLoad = async ({ url }) => {
     console.error('Error in pending page load:', error);
     // On any other error, redirect to login
     throw redirect(302, '/login');
+  }
+};
+
+export const actions: Actions = {
+  signOut: async (event) => {
+    const supabase = createSupabaseServerClient(event);
+
+    try {
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        console.error('Error signing out:', error);
+        return fail(500, {
+          error: 'Failed to sign out'
+        });
+      }
+
+      return {
+        success: true,
+        redirectTo: '/login'
+      };
+    } catch (error) {
+      console.error('Sign out error:', error);
+      return fail(500, {
+        error: 'Failed to sign out'
+      });
+    }
   }
 };

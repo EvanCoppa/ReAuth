@@ -10,63 +10,61 @@
 	import LogOutIcon from "@lucide/svelte/icons/log-out";
 	import SparklesIcon from "@lucide/svelte/icons/sparkles";
  	import { goto } from "$app/navigation";
- 
-  import { constructorExtends } from "@ark/util";
+	import { enhance } from '$app/forms';
 
- 
-	// Function to generate initials from name or email
-	function getInitials(sessionData: string): string {
-		// Use first and last name if available
-		// if (sessionData.userFirstName && sessionData.userLastName) {
-		// 	return (sessionData.userFirstName.charAt(0) + sessionData.userLastName.charAt(0)).toUpperCase();
-		// }
-		
-		// // Fallback to first name only
-		// if (sessionData.userFirstName) {
-		// 	return sessionData.userFirstName.charAt(0).toUpperCase();
-		// }
-		
-		// // Fallback to email if name fields are not available
-		// if (sessionData.userEmail) {
-		// 	return sessionData.userEmail.charAt(0).toUpperCase();
-		// }
-		
-		return 'U'; // Ultimate fallback
+	type UserData = {
+		id: string;
+		email: string;
+		firstName: string;
+		lastName: string;
+		fullName: string;
+		pending: boolean;
+	} | null;
+
+	let { userData }: { userData: UserData } = $props();
+
+	// Function to generate initials from user data
+	function getInitials(user: UserData): string {
+		if (!user) return 'U';
+
+		if (user.firstName && user.lastName) {
+			return (user.firstName.charAt(0) + user.lastName.charAt(0)).toUpperCase();
+		}
+
+		if (user.firstName) {
+			return user.firstName.charAt(0).toUpperCase();
+		}
+
+		if (user.email) {
+			return user.email.charAt(0).toUpperCase();
+		}
+
+		return 'U';
 	}
 
-	// Get display name from session data
-	
-	function getDisplayName(sessionData: string): string {
-		// Use first and last name if available
-		// if (sessionData.userFirstName && sessionData.userLastName) {
-		// 	return `${sessionData.userFirstName} ${sessionData.userLastName}`;
-		// }
-		
-		// // Fallback to first name only
-		// if (sessionData.userFirstName) {
-		// 	return sessionData.userFirstName;
-		// }
-		
-		// // Fallback to email username if name fields are not available
-		// if (sessionData.userEmail) {
-		// 	return sessionData.userEmail.split('@')[0];
-		// }
-		
+	// Get display name from user data
+	function getDisplayName(user: UserData): string {
+		if (!user) return 'User';
+
+		if (user.fullName && user.fullName.trim()) {
+			return user.fullName;
+		}
+
+		if (user.firstName && user.lastName) {
+			return `${user.firstName} ${user.lastName}`;
+		}
+
+		if (user.firstName) {
+			return user.firstName;
+		}
+
+		if (user.email) {
+			return user.email.split('@')[0];
+		}
+
 		return 'User';
 	}
 
-	// Logout function
-	async function handleLogout() {
-		try {
-			
-			
-			
-		
-			goto('/login');
-		} catch (error) {
-			console.error('Logout failed:', error);
-		}
-	}
 
 	const sidebar = useSidebar();
 </script>
@@ -82,12 +80,12 @@
 						{...props}
 					>
 						<Avatar.Root class="size-8 rounded-lg">
-							<Avatar.Image src="" alt={getDisplayName("sessionData")} />
-							<Avatar.Fallback class="rounded-lg">{getInitials("sessionData")}</Avatar.Fallback>
+							<Avatar.Image src="" alt={getDisplayName(userData)} />
+							<Avatar.Fallback class="rounded-lg">{getInitials(userData)}</Avatar.Fallback>
 						</Avatar.Root>
 						<div class="grid flex-1 text-left text-sm leading-tight">
-							<span class="truncate font-medium">{getDisplayName("sessionData")}</span>
-							<span class="truncate text-xs">{"sessionData.userEmail"}</span>
+							<span class="truncate font-medium">{getDisplayName(userData)}</span>
+							<span class="truncate text-xs">{userData?.email || ''}</span>
 						</div>
 						<ChevronsUpDownIcon class="ml-auto size-4" />
 					</Sidebar.MenuButton>
@@ -102,12 +100,12 @@
 				<DropdownMenu.Label class="p-0 font-normal">
 					<div class="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
 						<Avatar.Root class="size-8 rounded-lg">
-							<Avatar.Image src="" alt={getDisplayName("sessionData")} />
-							<Avatar.Fallback class="rounded-lg">{getInitials("sessionData")}</Avatar.Fallback>
+							<Avatar.Image src="" alt={getDisplayName(userData)} />
+							<Avatar.Fallback class="rounded-lg">{getInitials(userData)}</Avatar.Fallback>
 						</Avatar.Root>
 						<div class="grid flex-1 text-left text-sm leading-tight">
-							<span class="truncate font-medium">{getDisplayName("sessionData")}</span>
-							<span class="truncate text-xs">{"sessionData.userEmail"}</span>
+							<span class="truncate font-medium">{getDisplayName(userData)}</span>
+							<span class="truncate text-xs">{userData?.email || ''}</span>
 						</div>
 					</div>
 				</DropdownMenu.Label>
@@ -134,10 +132,27 @@
 					</DropdownMenu.Item>
 				</DropdownMenu.Group>
 				<DropdownMenu.Separator />
-				<DropdownMenu.Item onclick={handleLogout}>
-					<LogOutIcon />
-					Log out
-				</DropdownMenu.Item>
+				<form
+					method="POST"
+					action="/?/logout"
+					use:enhance={() => {
+						return async ({ result }) => {
+							if (result.type === 'success' && result.data?.redirectTo) {
+								await goto(result.data.redirectTo);
+							} else if (result.type === 'success') {
+								await goto('/login');
+							}
+						};
+					}}
+				>
+					<DropdownMenu.Item onclick={(e) => {
+						e.preventDefault();
+						e.currentTarget.closest('form')?.requestSubmit();
+					}}>
+						<LogOutIcon />
+						Log out
+					</DropdownMenu.Item>
+				</form>
 			</DropdownMenu.Content>
 		</DropdownMenu.Root>
 	</Sidebar.MenuItem>

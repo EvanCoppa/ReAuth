@@ -149,7 +149,7 @@
 	import TeamSwitcher from "./team-switcher.svelte";
 	import * as Sidebar from "$lib/components/ui/sidebar/index.js";
 	import type { ComponentProps } from "svelte";
- 
+	import { page } from "$app/state";
 
 	let {
 		ref = $bindable(null),
@@ -157,10 +157,8 @@
 		...restProps
 	}: ComponentProps<typeof Sidebar.Root> = $props();
 
-	// Get session data from cookies
-	 
-	// Reactive session data from cookies
-	 
+	// Get user data from the page state (layout data)
+	let userData = $derived(page.data?.session?.userProfile || null);
 </script>
 
 <Sidebar.Root {collapsible} {...restProps}>
@@ -172,7 +170,7 @@
 		<NavProjects projects={data.projects} />
 	</Sidebar.Content>
 	<Sidebar.Footer>
- 			<NavUser  />
+ 			<NavUser {userData} />
  	</Sidebar.Footer>
 	<Sidebar.Rail />
 </Sidebar.Root>

@@ -1,11 +1,6 @@
-import type { PageServerLoad } from './$types';
+import { createSupabaseServerClient } from '$lib/supabase.server';
 import { error } from '@sveltejs/kit';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = "https://zicozssqsqoyyzyhmjmv.supabase.co";
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InppY296c3Nxc3FveXl6eWhtam12Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTI0MjkzNDYsImV4cCI6MjA2ODAwNTM0Nn0.-D3a_a0a7utql6zjyV7yYYw0mNmlAyT8mHaF1IOB5Ms";
-
-const supabaseServer = createClient(supabaseUrl, supabaseServiceKey);
+import type { PageServerLoad } from './$types';
  function decodeInviteCode(encodedCode: string): string | null {
   try {
     const decoded = atob(encodedCode);
@@ -15,7 +10,9 @@ const supabaseServer = createClient(supabaseUrl, supabaseServiceKey);
   }
 }
 
-export const load: PageServerLoad = async ({ params }) => {
+export const load: PageServerLoad = async (event) => {
+  const { params } = event;
+  const supabase = createSupabaseServerClient(event);
   const encodedCode = params.code;
   
   if (!encodedCode) {
@@ -28,7 +25,7 @@ export const load: PageServerLoad = async ({ params }) => {
     throw error(400, 'Invalid invite code format');
   }
   try {
-     const { data: organization, error: dbError } = await supabaseServer
+     const { data: organization, error: dbError } = await supabase
       .from('organizations')
       .select('name')
       .eq('code', decodedCode)

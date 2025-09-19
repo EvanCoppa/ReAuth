@@ -2,17 +2,8 @@
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '$lib/components/ui/card';
   import { Button } from '$lib/components/ui/button';
   import { Separator } from '$lib/components/ui/separator';
-  import { supabase } from '$lib/supabaseClient';
+  import { enhance } from '$app/forms';
   import { goto } from '$app/navigation';
-  
-  async function signOut() {
-    try {
-      await supabase.auth.signOut();
-      goto('/login');
-    } catch (error) {
-      console.error('Error signing out:', error);
-    }
-  }
 
   async function refreshStatus() {
     // Force a page reload to check if approval status has changed
@@ -113,21 +104,36 @@
         </div>
 
         <div class="space-y-3">
-          <Button 
+          <Button
             onclick={refreshStatus}
-            variant="default" 
+            variant="default"
             class="w-full"
           >
             Check Approval Status
           </Button>
-          
-          <Button 
-            onclick={signOut}
-            variant="outline" 
-            class="w-full"
+
+          <form
+            method="POST"
+            action="?/signOut"
+            use:enhance={() => {
+              return async ({ result }) => {
+                if (result.type === 'success' && result.data?.redirectTo) {
+                  await goto(result.data.redirectTo);
+                } else if (result.type === 'success') {
+                  // Fallback redirect if no redirectTo specified
+                  await goto('/login');
+                }
+              };
+            }}
           >
-            Sign Out
-          </Button>
+            <Button
+              type="submit"
+              variant="outline"
+              class="w-full"
+            >
+              Sign Out
+            </Button>
+          </form>
         </div>
 
         <div class="text-center">

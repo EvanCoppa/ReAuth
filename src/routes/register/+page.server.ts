@@ -1,12 +1,14 @@
-import type { PageServerLoad, Actions } from "./$types.js";
+import { createSupabaseServerClient } from '$lib/supabase.server';
 import { fail, redirect } from "@sveltejs/kit";
 import { superValidate } from "sveltekit-superforms";
 import { zod } from "sveltekit-superforms/adapters";
 import { formSchema } from "./schema.js";
-import { supabase } from '$lib/supabaseClient';
+import type { PageServerLoad, Actions } from "./$types.js";
 
  
-export const load: PageServerLoad = async ({ url }) => {
+export const load: PageServerLoad = async (event) => {
+  const { url } = event;
+  const supabase = createSupabaseServerClient(event);
   const inviteCode = url.searchParams.get('invite');
   
   const form = await superValidate(zod(formSchema));
@@ -24,6 +26,7 @@ export const load: PageServerLoad = async ({ url }) => {
  
 export const actions: Actions = {
   default: async (event) => {
+    const supabase = createSupabaseServerClient(event);
     const form = await superValidate(event, zod(formSchema));
     console.log("Form data:", form.data);
     
