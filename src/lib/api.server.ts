@@ -26,6 +26,39 @@ function isCookies(value: EventContext): value is Cookies {
     typeof (value as Cookies).get === 'function'
   );
 }
+
+async function checkAuthenticationStatus(authInfo?: AuthInfo, eventOrCookies?: EventContext): Promise<{ isAuthenticated: boolean; token?: string; error?: string }> {
+  try {
+    let token: string | undefined;
+
+    if (authInfo?.token) {
+      token = authInfo.token;
+      return { isAuthenticated: true, token };
+    }
+
+    if (isRequestEvent(eventOrCookies)) {
+      const supabaseClient = createSupabaseServerClient(eventOrCookies);
+      const { data: { session }, error } = await supabaseClient.auth.getSession();
+
+      if (error) {
+        return { isAuthenticated: false, error: error.message };
+      }
+
+      if (session?.access_token) {
+        return { isAuthenticated: true, token: session.access_token };
+      }
+    } else if (isCookies(eventOrCookies)) {
+      token = eventOrCookies.get('accessToken') ?? undefined;
+      if (token) {
+        return { isAuthenticated: true, token };
+      }
+    }
+
+    return { isAuthenticated: false, error: 'No valid authentication found' };
+  } catch (error) {
+    return { isAuthenticated: false, error: `Authentication check failed: ${error}` };
+  }
+}
 export interface AuthInfo {
   token?: string;
   user?: any;
@@ -41,18 +74,40 @@ export async function authenticatedFetch(
   let token: string | undefined;
   let supabaseClient: any = null;
 
+  console.log('[AuthenticatedFetch] Starting request to:', url);
+  console.log('[AuthenticatedFetch] AuthInfo provided:', !!authInfo?.token);
+  console.log('[AuthenticatedFetch] EventOrCookies type:',
+    isRequestEvent(eventOrCookies) ? 'RequestEvent' :
+    isCookies(eventOrCookies) ? 'Cookies' : 'undefined');
+
   if (authInfo?.token) {
     token = authInfo.token;
+    console.log('[AuthenticatedFetch] Using provided authInfo token');
   } else if (isRequestEvent(eventOrCookies)) {
     supabaseClient = createSupabaseServerClient(eventOrCookies);
-    const { data: { session } } = await supabaseClient.auth.getSession();
+    const { data: { session }, error } = await supabaseClient.auth.getSession();
+
+    console.log('[AuthenticatedFetch] Session data:', {
+      hasSession: !!session,
+      hasAccessToken: !!session?.access_token,
+      userId: session?.user?.id,
+      error: error?.message
+    });
+
+    if (error) {
+      console.error('[AuthenticatedFetch] Session error:', error);
+    }
+
     token = session?.access_token;
   } else if (isCookies(eventOrCookies)) {
     token = eventOrCookies.get('accessToken') ?? undefined;
+    console.log('[AuthenticatedFetch] Cookie token found:', !!token);
   }
 
   if (!token) {
-    throw new Error('No authentication token available');
+    console.error('[AuthenticatedFetch] JWT validation failed: Token validation error: Auth session missing!');
+    console.error('[AuthenticatedFetch] No authentication token available. AuthInfo:', !!authInfo, 'EventContext:', !!eventOrCookies);
+    throw new Error('JWT validation failed: Token validation error: Auth session missing!');
   }
 
   const makeRequest = async (accessToken: string): Promise<Response> => {
@@ -77,15 +132,32 @@ export async function authenticatedFetch(
     }
 
     if (response.status === 401 || response.status === 403) {
+      console.warn(`[AuthenticatedFetch] Authentication failed (${response.status}) for URL: ${url}`);
+
       if (supabaseClient) {
+        console.log('[AuthenticatedFetch] Attempting to refresh session...');
         const { data: { session }, error } = await supabaseClient.auth.refreshSession();
 
+        console.log('[AuthenticatedFetch] Refresh result:', {
+          hasNewSession: !!session,
+          hasNewAccessToken: !!session?.access_token,
+          refreshError: error?.message
+        });
+
         if (session?.access_token && !error) {
+          console.log('[AuthenticatedFetch] Retrying request with refreshed token...');
           const retryResponse = await makeRequest(session.access_token);
           if (retryResponse.ok) {
+            console.log('[AuthenticatedFetch] Retry successful');
             return retryResponse;
+          } else {
+            console.error('[AuthenticatedFetch] Retry failed with status:', retryResponse.status);
           }
+        } else {
+          console.error('[AuthenticatedFetch] Session refresh failed:', error?.message);
         }
+      } else {
+        console.error('[AuthenticatedFetch] No supabase client available for token refresh');
       }
 
       // Only show toast error if we're in a browser context
@@ -105,21 +177,29 @@ export async function authenticatedFetch(
 
 // Authenticated API functions
 export async function getClients(authInfo?: AuthInfo, event?: EventContext): Promise<Client[]> {
-  const response = await authenticatedFetch(`${API_BASE_URL}/clients`, { method: 'GET' }, authInfo, event);
+  try {
+    console.log('[API] Getting clients...');
+    const response = await authenticatedFetch(`${API_BASE_URL}/clients`, { method: 'GET' }, authInfo, event);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(errorText || `Failed to fetch clients: ${response.status} ${response.statusText}`);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[API] Failed to fetch clients:', response.status, errorText);
+      throw new Error(errorText || `Failed to fetch clients: ${response.status} ${response.statusText}`);
+    }
+
+    const payload = await response.json().catch(() => null);
+    const clients = Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload)
+        ? payload
+        : [];
+
+    console.log(`[API] Successfully fetched ${clients.length} clients`);
+    return clients as Client[];
+  } catch (error) {
+    console.error('[API] Error in getClients:', error);
+    throw error;
   }
-
-  const payload = await response.json().catch(() => null);
-  const clients = Array.isArray(payload?.data)
-    ? payload.data
-    : Array.isArray(payload)
-      ? payload
-      : [];
-
-  return clients as Client[];
 }
 
 export async function deleteClientById(clientId: string, authInfo?: AuthInfo, event?: EventContext): Promise<Response> {

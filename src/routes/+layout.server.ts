@@ -4,13 +4,28 @@ import { createSupabaseServerClient } from '$lib/supabase.server';
 export const load: LayoutServerLoad = async (event) => {
 	const supabase = createSupabaseServerClient(event);
 
+	console.log('[Layout] Loading layout server data...');
+
 	try {
-		// Use getUser() instead of getSession() for better security
-		const { data: { user }, error } = await supabase.auth.getUser();
+		// Get both user and session to have access token for API calls
+		const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+		const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+		console.log('[Layout] Session check:', {
+			hasSession: !!session,
+			hasUser: !!user,
+			hasAccessToken: !!session?.access_token,
+			sessionError: sessionError?.message,
+			userError: userError?.message,
+			userId: session?.user?.id || user?.id
+		});
 
 		// Don't log "Auth session missing" as an error - it's normal when not logged in
-		if (error && !error.message?.includes('Auth session missing')) {
-			console.error('Error getting user:', error);
+		if (sessionError && !sessionError.message?.includes('Auth session missing')) {
+			console.error('[Layout] Error getting session:', sessionError);
+		}
+		if (userError && !userError.message?.includes('Auth session missing')) {
+			console.error('[Layout] Error getting user:', userError);
 		}
 
 		let userProfile = null;
@@ -39,11 +54,16 @@ export const load: LayoutServerLoad = async (event) => {
 			}
 		}
 
-		// Convert user to session format for compatibility
-		const session = user ? { user, userProfile } : null;
+		// Include session with access token for API calls
+		const sessionWithProfile = session && user ? {
+			...session,
+			user,
+			userProfile,
+			access_token: session.access_token
+		} : null;
 
 		return {
-			session
+			session: sessionWithProfile
 		};
 	} catch (error) {
 		// If there's any error getting the user, just return no session

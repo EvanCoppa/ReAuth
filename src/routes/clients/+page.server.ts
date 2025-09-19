@@ -3,12 +3,13 @@ import type { Client, ClientPayload } from '$lib/types';
 import type { Actions, PageServerLoad } from './$types';
 import type { Cookies } from '@sveltejs/kit';
 
-async function fetchClientsData(cookies: Cookies): Promise<Client[]> {
+async function fetchClientsData(authInfo?: { token: string; user: any }, cookies?: Cookies): Promise<Client[]> {
   try {
-    const clients = await getClients(undefined, cookies);
+    console.log('[fetchClientsData] Fetching with auth:', { hasAuthInfo: !!authInfo, hasCookies: !!cookies });
+    const clients = await getClients(authInfo, cookies);
     return clients;
   } catch (error) {
-    console.error('Error fetching clients:', error);
+    console.error('[fetchClientsData] Error fetching clients:', error);
     throw error;
   }
 }
@@ -110,39 +111,60 @@ function generateClientListHTML(clients: Client[]): string {
   `;
 }
 
-export const load: PageServerLoad = async ({ cookies }) => {
+export const load: PageServerLoad = async ({ cookies, parent }) => {
   try {
+    // Get session data from parent layout
+    const { session } = await parent();
+
+    console.log('[Clients] Page load - Session check:', {
+      hasSession: !!session,
+      hasUser: !!session?.user,
+      hasAccessToken: !!session?.access_token,
+      userId: session?.user?.id
+    });
+
+    // If no valid session, return empty data - don't try to fetch clients
+    if (!session?.access_token || !session?.user) {
+      console.log('[Clients] No valid session - returning empty client list');
+      return {
+        clients: [],
+        userId: null,
+        error: 'Authentication required'
+      };
+    }
+
     const userId = cookies.get('userId');
     const accessToken = cookies.get('accessToken');
     const authenticated = cookies.get('authenticated') === 'true';
-    
-    // console.log('🔐 Clients: Server-side cookie check', {
-    //   hasUserId: !!userId,
-    //   userId: userId,
-    //   hasToken: !!accessToken,
-    //   tokenPreview: accessToken ? accessToken.substring(0, 20) + '...' : 'none',
-    //   authenticated: authenticated,
-    //   cookieSource: 'server-side cookies (synced from client)'
-    // });
-    
-    const clients = await fetchClientsData(cookies);
 
-    // console.log('✅ Clients: Loaded data', {
-    //   totalClients: clients.length,
-    //   sampleClient: clients[0] || null
-    // });
+    console.log('[Clients] Cookie check:', {
+      hasUserId: !!userId,
+      hasToken: !!accessToken,
+      authenticated: authenticated,
+      sessionUserId: session.user.id
+    });
+
+    // Use session token for API calls
+    const authInfo = {
+      token: session.access_token,
+      user: session.user
+    };
+
+    const clients = await getClients(authInfo);
+
+    console.log(`[Clients] Successfully loaded ${clients.length} clients`);
 
     return {
       clients: clients as Client[],
-      userId
+      userId: session.user.id
     };
 
   } catch (error) {
-    console.error('Error loading clients:', error);
+    console.error('[Clients] Error loading clients:', error);
     return {
       clients: [],
       userId: null,
-      error: 'Failed to load clients'
+      error: error instanceof Error ? error.message : 'Failed to load clients'
     };
   }
 };
@@ -188,7 +210,8 @@ export const actions: Actions = {
       // console.log('✅ Client created:', result);
 
       // Refresh the client list after creation
-      const updatedClients = await fetchClientsData(cookies);
+      const authInfo = { token: cookies.get('accessToken') || '', user: { id: cookies.get('userId') } };
+      const updatedClients = await fetchClientsData(authInfo, cookies);
 
       return {
         success: true,
@@ -206,7 +229,8 @@ export const actions: Actions = {
 
   refresh: async ({ cookies }) => {
     try {
-      const clients = await fetchClientsData(cookies);
+      const authInfo = { token: cookies.get('accessToken') || '', user: { id: cookies.get('userId') } };
+      const clients = await fetchClientsData(authInfo, cookies);
       // console.log('🔄 Clients refreshed:', clients.length);
       
       return {
@@ -255,7 +279,8 @@ export const actions: Actions = {
       }
 
       // Refresh the client list after deletion
-      const updatedClients = await fetchClientsData(cookies);
+      const authInfo = { token: cookies.get('accessToken') || '', user: { id: cookies.get('userId') } };
+      const updatedClients = await fetchClientsData(authInfo, cookies);
 
       if (errors.length === 0) {
         return {
@@ -320,7 +345,8 @@ export const actions: Actions = {
       console.log('✅ Client updated:', result);
 
       // Refresh the client list after update
-      const updatedClients = await fetchClientsData(cookies);
+      const authInfo = { token: cookies.get('accessToken') || '', user: { id: cookies.get('userId') } };
+      const updatedClients = await fetchClientsData(authInfo, cookies);
 
       return {
         success: true,
@@ -349,7 +375,8 @@ export const actions: Actions = {
       }
 
       const ids = JSON.parse(clientIds) as number[];
-      const allClients = await fetchClientsData(cookies);
+      const authInfo = { token: cookies.get('accessToken') || '', user: { id: cookies.get('userId') } };
+      const allClients = await fetchClientsData(authInfo, cookies);
       const selectedClients = allClients.filter(client => ids.includes(client.clientid));
 
       if (selectedClients.length === 0) {
