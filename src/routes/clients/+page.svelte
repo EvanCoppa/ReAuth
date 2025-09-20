@@ -14,8 +14,10 @@
   import PlusIcon from '@lucide/svelte/icons/plus';
   import CheckIcon from '@lucide/svelte/icons/check';
   import XIcon from '@lucide/svelte/icons/x';
+  import UploadIcon from '@lucide/svelte/icons/upload';
   import { toastStore } from '$lib/toast';
   import NewClientSheet from '$lib/components/NewClientSheet.svelte';
+  import ClientCSVImportModal from '$lib/components/ClientCSVImportModal.svelte';
   
   let { data, form }: { data: PageData; form: ActionData } = $props();
   
@@ -24,6 +26,7 @@
   let isExporting = $state(false);
   let searchTerm = $state('');
   let showNewClientForm = $state(false);
+  let showImportModal = $state(false);
   
   // Selection state
   let selectedClientIds = $state<Set<number>>(new Set());
@@ -239,6 +242,14 @@
   function isValidClient(client: Client | null): boolean {
     return !!(client?.first_name?.trim() && client?.last_name?.trim());
   }
+
+  function handleImportComplete(updatedClients: Client[]) {
+    // Update the clients data
+    if (updatedClients && updatedClients.length > 0) {
+      // This will be handled by the form action result
+      location.reload(); // Simple reload to get fresh data
+    }
+  }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -362,8 +373,17 @@
         size="sm"
         disabled={editingClientId !== null}
       >
-        <PlusIcon class="w-4 h-4 mr-2" />
+        <PlusIcon class="w-4 h-4 " />
         Add Client
+      </Button>
+      <Button
+        onclick={() => showImportModal = true}
+        variant="outline"
+        size="sm"
+        disabled={editingClientId !== null}
+      >
+        <UploadIcon class="w-4 h-4 mr-2" />
+        Import CSV
       </Button>
     </div>
   </div>
@@ -630,5 +650,12 @@
     bind:isOpen={showNewClientForm}
     onClose={handleCloseNewClient}
     onSubmit={handleCreateClient}
+  />
+
+  <!-- CSV Import Modal -->
+  <ClientCSVImportModal
+    bind:showImportModal={showImportModal}
+    clients={allClients}
+    onImportComplete={handleImportComplete}
   />
 </div>

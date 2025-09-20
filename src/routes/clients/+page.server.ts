@@ -1,12 +1,12 @@
-import { createClient, deleteClientById, getClients, updateClient } from '$lib/api.server';
+import { createClient, deleteClientById, getClients, updateClient, authenticatedFetch, API_BASE_URL } from '$lib/api.server';
 import type { Client, ClientPayload } from '$lib/types';
 import type { Actions, PageServerLoad } from './$types';
 import type { Cookies } from '@sveltejs/kit';
 
-async function fetchClientsData(authInfo?: { token: string; user: any }, cookies?: Cookies): Promise<Client[]> {
+async function fetchClientsData(authInfo?: { token: string; user: any }, event?: any): Promise<Client[]> {
   try {
-    console.log('[fetchClientsData] Fetching with auth:', { hasAuthInfo: !!authInfo, hasCookies: !!cookies });
-    const clients = await getClients(authInfo, cookies);
+    console.log('[fetchClientsData] Fetching with auth:', { hasAuthInfo: !!authInfo, hasEvent: !!event });
+    const clients = await getClients(authInfo, event);
     return clients;
   } catch (error) {
     console.error('[fetchClientsData] Error fetching clients:', error);
@@ -170,9 +170,9 @@ export const load: PageServerLoad = async ({ cookies, parent }) => {
 };
 
 export const actions: Actions = {
-  create: async ({ request, cookies }) => {
+  create: async (event) => {
     try {
-      const formData = await request.formData();
+      const formData = await event.request.formData();
       const clientData: ClientPayload = {
         first_name: formData.get('first_name') as string,
         last_name: formData.get('last_name') as string,
@@ -191,7 +191,7 @@ export const actions: Actions = {
         };
       }
 
-      const response = await createClient(clientData, undefined, cookies);
+      const response = await createClient(clientData, undefined, event);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -210,8 +210,7 @@ export const actions: Actions = {
       // console.log('✅ Client created:', result);
 
       // Refresh the client list after creation
-      const authInfo = { token: cookies.get('accessToken') || '', user: { id: cookies.get('userId') } };
-      const updatedClients = await fetchClientsData(authInfo, cookies);
+      const updatedClients = await fetchClientsData(undefined, event);
 
       return {
         success: true,
@@ -227,12 +226,11 @@ export const actions: Actions = {
     }
   },
 
-  refresh: async ({ cookies }) => {
+  refresh: async (event) => {
     try {
-      const authInfo = { token: cookies.get('accessToken') || '', user: { id: cookies.get('userId') } };
-      const clients = await fetchClientsData(authInfo, cookies);
+      const clients = await fetchClientsData(undefined, event);
       // console.log('🔄 Clients refreshed:', clients.length);
-      
+
       return {
         success: true,
         clients: clients as Client[]
@@ -246,11 +244,11 @@ export const actions: Actions = {
     }
   },
 
-  delete: async ({ request, cookies }) => {
+  delete: async (event) => {
     try {
-      const formData = await request.formData();
+      const formData = await event.request.formData();
       const clientIds = formData.get('clientIds') as string;
-      
+
       if (!clientIds) {
         return {
           success: false,
@@ -265,7 +263,7 @@ export const actions: Actions = {
       // Delete each client individually
       for (const clientId of ids) {
         try {
-          const response = await deleteClientById(clientId.toString(), undefined, cookies);
+          const response = await deleteClientById(clientId.toString(), undefined, event);
 
           if (!response.ok) {
             const errorText = await response.text();
@@ -279,8 +277,7 @@ export const actions: Actions = {
       }
 
       // Refresh the client list after deletion
-      const authInfo = { token: cookies.get('accessToken') || '', user: { id: cookies.get('userId') } };
-      const updatedClients = await fetchClientsData(authInfo, cookies);
+      const updatedClients = await fetchClientsData(undefined, event);
 
       if (errors.length === 0) {
         return {
@@ -304,9 +301,9 @@ export const actions: Actions = {
     }
   },
 
-  update: async ({ request, cookies }) => {
+  update: async (event) => {
     try {
-      const formData = await request.formData();
+      const formData = await event.request.formData();
       const clientId = formData.get('clientId') as string;
       const clientData: ClientPayload = {
         first_name: formData.get('first_name') as string,
@@ -326,7 +323,7 @@ export const actions: Actions = {
         };
       }
 
-      const response = await updateClient(clientId, clientData, undefined, cookies);
+      const response = await updateClient(clientId, clientData, undefined, event);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -345,8 +342,7 @@ export const actions: Actions = {
       console.log('✅ Client updated:', result);
 
       // Refresh the client list after update
-      const authInfo = { token: cookies.get('accessToken') || '', user: { id: cookies.get('userId') } };
-      const updatedClients = await fetchClientsData(authInfo, cookies);
+      const updatedClients = await fetchClientsData(undefined, event);
 
       return {
         success: true,
@@ -362,9 +358,78 @@ export const actions: Actions = {
     }
   },
 
-  export: async ({ request, cookies }) => {
+  bulkImport: async (event) => {
     try {
-      const formData = await request.formData();
+      const formData = await event.request.formData();
+      const clientsJson = formData.get('clients') as string;
+
+      if (!clientsJson) {
+        return {
+          success: false,
+          error: 'No client data provided'
+        };
+      }
+
+      const clientsData = JSON.parse(clientsJson);
+      const clients = clientsData.clients || clientsData;
+
+      if (!Array.isArray(clients) || clients.length === 0) {
+        return {
+          success: false,
+          error: 'Invalid client data provided'
+        };
+      }
+
+      // Use the bulk endpoint
+      const response = await authenticatedFetch(
+        `${API_BASE_URL}/clients/bulk`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ clients })
+        },
+        undefined,
+        event
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('🚨 Bulk import API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorBody: errorText
+        });
+        return {
+          success: false,
+          error: `Failed to import clients: ${response.statusText}`
+        };
+      }
+
+      const result = await response.json();
+      console.log('✅ Clients imported:', result);
+
+      // Refresh the client list after import
+      const updatedClients = await fetchClientsData(undefined, event);
+
+      return {
+        success: true,
+        clients: updatedClients,
+        message: result.message || `Successfully imported ${clients.length} clients`
+      };
+    } catch (error) {
+      console.error('Error importing clients:', error);
+      return {
+        success: false,
+        error: 'Failed to import clients'
+      };
+    }
+  },
+
+  export: async (event) => {
+    try {
+      const formData = await event.request.formData();
       const clientIds = formData.get('clientIds') as string;
 
       if (!clientIds) {
@@ -375,8 +440,7 @@ export const actions: Actions = {
       }
 
       const ids = JSON.parse(clientIds) as number[];
-      const authInfo = { token: cookies.get('accessToken') || '', user: { id: cookies.get('userId') } };
-      const allClients = await fetchClientsData(authInfo, cookies);
+      const allClients = await fetchClientsData(undefined, event);
       const selectedClients = allClients.filter(client => ids.includes(client.clientid));
 
       if (selectedClients.length === 0) {

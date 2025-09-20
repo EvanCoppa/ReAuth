@@ -35,7 +35,7 @@ export const load: LayoutServerLoad = async (event) => {
 			try {
 				const { data: profile } = await supabase
 					.from('profiles')
-					.select('first_name, last_name, pending')
+					.select('first_name, last_name, pending, org_id')
 					.eq('auth_user_id', user.id)
 					.single();
 
@@ -46,8 +46,19 @@ export const load: LayoutServerLoad = async (event) => {
 						firstName: profile.first_name,
 						lastName: profile.last_name,
 						fullName: `${profile.first_name} ${profile.last_name}`.trim(),
-						pending: profile.pending
+						pending: profile.pending,
+						orgId: profile.org_id
 					};
+
+					// Set orgId cookie if it exists in profile
+					if (profile.org_id) {
+						event.cookies.set('orgId', profile.org_id.toString(), {
+							path: '/',
+							httpOnly: false,
+							secure: true,
+							sameSite: 'lax'
+						});
+					}
 				}
 			} catch (profileError) {
 				console.error('Error fetching user profile:', profileError);
