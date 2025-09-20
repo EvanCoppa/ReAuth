@@ -432,7 +432,8 @@
             {#each filteredClients as client}
               <TableRow
                 data-state={selectedClientIds.has(client.clientid) ? 'selected' : undefined}
-                class={editingClientId === client.clientid ? 'bg-blue-50 editing-row' : ''}
+                class={editingClientId === client.clientid ? 'bg-blue-50 editing-row' : 'cursor-pointer hover:bg-gray-50'}
+                ondblclick={() => editingClientId !== client.clientid && startEditing(client)}
               >
                 <TableCell>
                   <input

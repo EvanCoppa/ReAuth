@@ -20,10 +20,10 @@ interface Billable {
 	code: string;
 }
 
-export const load: PageServerLoad = async ({ cookies, parent }) => {
+export const load: PageServerLoad = async (event) => {
 	try {
 		// Get session data from parent layout
-		const { session } = await parent();
+		const { session } = await event.parent();
 
 		// If no valid session, return empty data
 		if (!session?.access_token || !session?.user) {
@@ -45,10 +45,10 @@ export const load: PageServerLoad = async ({ cookies, parent }) => {
 
 		// Load all data in parallel
 		const [providersRes, billablesRes, displayCodesRes, quickPlansRes] = await Promise.all([
-			authenticatedFetch(`${API_BASE_URL}/providers`, {}, authInfo, cookies),
-			authenticatedFetch(`${API_BASE_URL}/billables`, {}, authInfo, cookies),
-			authenticatedFetch(`${API_BASE_URL}/settings/display-codes`, {}, authInfo, cookies),
-			authenticatedFetch(`${API_BASE_URL}/quick-plans`, {}, authInfo, cookies)
+			authenticatedFetch(`${API_BASE_URL}/providers`, {}, authInfo, event),
+			authenticatedFetch(`${API_BASE_URL}/billables`, {}, authInfo, event),
+			authenticatedFetch(`${API_BASE_URL}/settings/display-codes`, {}, authInfo, event),
+			authenticatedFetch(`${API_BASE_URL}/quick-plans`, {}, authInfo, event)
 		]);
 
 		// Process providers
@@ -109,8 +109,8 @@ export const load: PageServerLoad = async ({ cookies, parent }) => {
 };
 
 export const actions: Actions = {
-	createProvider: async ({ request, cookies }) => {
-		const formData = await request.formData();
+	createProvider: async (event) => {
+		const formData = await event.request.formData();
 		const firstname = formData.get('firstname') as string;
 		const lastname = formData.get('lastname') as string;
 
@@ -122,7 +122,7 @@ export const actions: Actions = {
 			const response = await authenticatedFetch(`${API_BASE_URL}/providers`, {
 				method: 'POST',
 				body: JSON.stringify({ firstname, lastname })
-			}, undefined, cookies);
+			}, undefined, event);
 
 			if (!response.ok) {
 				return fail(response.status, { error: 'Failed to create provider' });
@@ -134,8 +134,8 @@ export const actions: Actions = {
 		}
 	},
 
-	updateProvider: async ({ request, cookies }) => {
-		const formData = await request.formData();
+	updateProvider: async (event) => {
+		const formData = await event.request.formData();
 		const id = formData.get('id') as string;
 		const firstname = formData.get('firstname') as string;
 		const lastname = formData.get('lastname') as string;
@@ -148,7 +148,7 @@ export const actions: Actions = {
 			const response = await authenticatedFetch(`${API_BASE_URL}/providers/${id}`, {
 				method: 'PUT',
 				body: JSON.stringify({ firstname, lastname })
-			}, undefined, cookies);
+			}, undefined, event);
 
 			if (!response.ok) {
 				return fail(response.status, { error: 'Failed to update provider' });
@@ -160,8 +160,8 @@ export const actions: Actions = {
 		}
 	},
 
-	deleteProvider: async ({ request, cookies }) => {
-		const formData = await request.formData();
+	deleteProvider: async (event) => {
+		const formData = await event.request.formData();
 		const id = formData.get('id') as string;
 
 		if (!id) {
@@ -171,7 +171,7 @@ export const actions: Actions = {
 		try {
 			const response = await authenticatedFetch(`${API_BASE_URL}/providers/${id}`, {
 				method: 'DELETE'
-			}, undefined, cookies);
+			}, undefined, event);
 
 			if (!response.ok) {
 				return fail(response.status, { error: 'Failed to delete provider' });
@@ -183,15 +183,15 @@ export const actions: Actions = {
 		}
 	},
 
-	updateDisplayCodes: async ({ request, cookies }) => {
-		const formData = await request.formData();
+	updateDisplayCodes: async (event) => {
+		const formData = await event.request.formData();
 		const codes = formData.getAll('codes') as string[];
 
 		try {
 			const response = await authenticatedFetch(`${API_BASE_URL}/settings/display-codes`, {
 				method: 'PUT',
 				body: JSON.stringify({ codes })
-			}, undefined, cookies);
+			}, undefined, event);
 
 			if (!response.ok) {
 				return fail(response.status, { error: 'Failed to update display codes' });
@@ -203,8 +203,8 @@ export const actions: Actions = {
 		}
 	},
 
-	createQuickPlan: async ({ request, cookies }) => {
-		const formData = await request.formData();
+	createQuickPlan: async (event) => {
+		const formData = await event.request.formData();
 		const name = formData.get('name') as string;
 		const codes = formData.getAll('codes') as string[];
 
@@ -219,7 +219,7 @@ export const actions: Actions = {
 					name,
 					billable_codes: codes
 				})
-			}, undefined, cookies);
+			}, undefined, event);
 
 			if (!response.ok) {
 				return fail(response.status, { error: 'Failed to create quick plan' });
@@ -231,8 +231,8 @@ export const actions: Actions = {
 		}
 	},
 
-	updateQuickPlan: async ({ request, cookies }) => {
-		const formData = await request.formData();
+	updateQuickPlan: async (event) => {
+		const formData = await event.request.formData();
 		const id = formData.get('id') as string;
 		const name = formData.get('name') as string;
 		const codes = formData.getAll('codes') as string[];
@@ -248,7 +248,7 @@ export const actions: Actions = {
 					name,
 					billable_codes: codes
 				})
-			}, undefined, cookies);
+			}, undefined, event);
 
 			if (!response.ok) {
 				return fail(response.status, { error: 'Failed to update quick plan' });
@@ -260,8 +260,8 @@ export const actions: Actions = {
 		}
 	},
 
-	deleteQuickPlan: async ({ request, cookies }) => {
-		const formData = await request.formData();
+	deleteQuickPlan: async (event) => {
+		const formData = await event.request.formData();
 		const id = formData.get('id') as string;
 
 		if (!id) {
@@ -271,7 +271,7 @@ export const actions: Actions = {
 		try {
 			const response = await authenticatedFetch(`${API_BASE_URL}/quick-plans/${id}`, {
 				method: 'DELETE'
-			}, undefined, cookies);
+			}, undefined, event);
 
 			if (!response.ok) {
 				return fail(response.status, { error: 'Failed to delete quick plan' });

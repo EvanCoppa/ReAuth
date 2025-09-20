@@ -11,13 +11,13 @@ export interface Billable {
   is_displayed: boolean | null;
 }
 
-async function fetchBillablesData(authInfo: any, cookies: any): Promise<Billable[]> {
+async function fetchBillablesData(authInfo: any, event: any): Promise<Billable[]> {
   try {
     const response = await authenticatedFetch(
       `${API_BASE_URL}/billables`,
       { method: 'GET' },
       authInfo,
-      cookies
+      event
     );
 
     if (!response.ok) {
@@ -78,9 +78,9 @@ export const load: PageServerLoad = async ({ cookies, parent }) => {
 };
 
 export const actions: Actions = {
-  create: async ({ request, cookies }) => {
+  create: async (event) => {
     try {
-      const formData = await request.formData();
+      const formData = await event.request.formData();
       const billableData = {
         billable_code: formData.get('billable_code') as string,
         description: formData.get('description') as string,
@@ -108,7 +108,7 @@ export const actions: Actions = {
           body: JSON.stringify(billableData)
         },
         undefined,
-        cookies
+        event
       );
 
       if (!response.ok) {
@@ -128,7 +128,7 @@ export const actions: Actions = {
       console.log('✅ Billable created:', result);
 
       // Refresh the billable list after creation
-      const updatedBillables = await fetchBillablesData(cookies);
+      const updatedBillables = await fetchBillablesData(event);
 
       return {
         success: true,
@@ -144,10 +144,10 @@ export const actions: Actions = {
     }
   },
 
-  update: async ({ request, cookies }) => {
+  update: async (event) => {
     console.log('📝 Update action triggered');
     try {
-      const formData = await request.formData();
+      const formData = await event.request.formData();
 
       // Log all form data received
       console.log('📋 All form data entries:');
@@ -189,7 +189,7 @@ export const actions: Actions = {
           body: JSON.stringify(updateData)
         },
         undefined,
-        cookies
+        event
       );
 
       console.log('📬 API Response status:', response.status);
@@ -215,7 +215,7 @@ export const actions: Actions = {
 
       // Refresh the billable list after update
       console.log('🔄 Fetching updated billables list...');
-      const updatedBillables = await fetchBillablesData(cookies);
+      const updatedBillables = await fetchBillablesData(event);
       console.log('📊 Updated billables count:', updatedBillables.length);
 
       return {
@@ -233,10 +233,10 @@ export const actions: Actions = {
     }
   },
 
-  delete: async ({ request, cookies }) => {
+  delete: async (event) => {
     console.log('🗑️ Delete action triggered');
     try {
-      const formData = await request.formData();
+      const formData = await event.request.formData();
 
       // Log all form data received
       console.log('📋 All delete form data entries:');
@@ -264,7 +264,7 @@ export const actions: Actions = {
         `${API_BASE_URL}/billables/${billableId}`,
         { method: 'DELETE' },
         undefined,
-        cookies
+        event
       );
 
       console.log('📬 DELETE API Response status:', response.status);
@@ -288,7 +288,7 @@ export const actions: Actions = {
 
       // Refresh the billable list after deletion
       console.log('🔄 Fetching updated billables list after deletion...');
-      const updatedBillables = await fetchBillablesData(cookies);
+      const updatedBillables = await fetchBillablesData(event);
       console.log('📊 Updated billables count after deletion:', updatedBillables.length);
 
       return {
@@ -308,7 +308,7 @@ export const actions: Actions = {
 
   refresh: async ({ cookies }) => {
     try {
-      const billables = await fetchBillablesData(cookies);
+      const billables = await fetchBillablesData(event);
       console.log('🔄 Billables refreshed:', billables.length);
 
       return {

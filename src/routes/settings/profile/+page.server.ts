@@ -67,7 +67,8 @@ export const load: PageServerLoad = async ({ fetch, cookies }) => {
 };
 
 export const actions: Actions = {
-	updateProfile: async ({ request, fetch, cookies }) => {
+	updateProfile: async (event) => {
+		const { request, fetch, cookies } = event;
 		const sessionId = cookies.get('sessionId');
 		if (!sessionId) {
 			return fail(401, { error: 'Not authenticated' });
@@ -111,7 +112,8 @@ export const actions: Actions = {
 		}
 	},
 
-	uploadProfilePhoto: async ({ request, fetch, cookies }) => {
+	uploadProfilePhoto: async (event) => {
+		const { request, fetch, cookies } = event;
 		const sessionId = cookies.get('sessionId');
 		if (!sessionId) {
 			return fail(401, { error: 'Not authenticated' });

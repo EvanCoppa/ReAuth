@@ -33,6 +33,9 @@
   import LinkIcon from "@lucide/svelte/icons/link";
   import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
   import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
+  import TrashIcon from "@lucide/svelte/icons/trash";
+  import CheckIcon from "@lucide/svelte/icons/check";
+  import XIcon from "@lucide/svelte/icons/x";
 
   const { data, form }: { data: PageData; form: ActionData } = $props();
   console.log('Loaded treatment plans data:', data);
@@ -72,6 +75,11 @@
   // Amount paid editing state
   let editingAmountPaid = $state<TreatmentPlan | null>(null);
   let isEditAmountPaidOpen = $state(false);
+
+  // Inline editing state
+  let editingTreatmentPlanId = $state<number | null>(null);
+  let editingTreatmentPlan = $state<TreatmentPlan | null>(null);
+  let isUpdating = $state(false);
 
   // Column helper for type safety
   const columnHelper = createColumnHelper<TreatmentPlan>();
@@ -292,6 +300,81 @@
     isEditAmountPaidOpen = false;
   }
 
+  let singleDeleteForm: HTMLFormElement | undefined;
+
+  function deleteSingleVisit(visit: TreatmentPlan) {
+    if (!confirm(`Delete treatment plan for ${visit.treatment_plan?.patient_name}?`)) return;
+
+    if (singleDeleteForm) {
+      const visitIdInput = singleDeleteForm.querySelector('input[name="visitId"]') as HTMLInputElement;
+      if (visitIdInput) {
+        visitIdInput.value = visit.visitid.toString();
+        singleDeleteForm.requestSubmit();
+      }
+    }
+  }
+
+  // Inline editing functions
+  function startEditing(treatmentPlan: TreatmentPlan) {
+    // Prevent editing if another treatment plan is already being edited
+    if (editingTreatmentPlanId !== null) {
+      toastStore.error('Please save or cancel the current edit before editing another treatment plan');
+      return;
+    }
+
+    editingTreatmentPlanId = treatmentPlan.visitid;
+    editingTreatmentPlan = { ...treatmentPlan };
+    // Focus the first input after the DOM updates
+    setTimeout(() => {
+      const firstInput = document.querySelector('.editing-row input[type="text"]') as HTMLInputElement;
+      if (firstInput) {
+        firstInput.focus();
+        firstInput.select();
+      }
+    }, 0);
+  }
+
+  function cancelEditing() {
+    editingTreatmentPlanId = null;
+    editingTreatmentPlan = null;
+  }
+
+  function handleTreatmentPlanUpdate() {
+    return async ({ result, update }: any) => {
+      isUpdating = false;
+      if (result.type === 'success') {
+        await update();
+        if (result.data?.success) {
+          toastStore.success('Treatment plan updated successfully!');
+          cancelEditing();
+        } else {
+          toastStore.error(result.data?.error || 'Failed to update treatment plan');
+        }
+      } else {
+        toastStore.error('Failed to update treatment plan');
+      }
+    };
+  }
+
+  function isValidTreatmentPlan(treatmentPlan: TreatmentPlan | null): boolean {
+    return !!(treatmentPlan?.treatment_plan?.patient_name?.trim());
+  }
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape' && editingTreatmentPlanId) {
+      cancelEditing();
+    }
+    // Ctrl/Cmd + Enter to save
+    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && editingTreatmentPlanId && editingTreatmentPlan) {
+      if (isValidTreatmentPlan(editingTreatmentPlan)) {
+        const form = document.querySelector('.editing-row form') as HTMLFormElement;
+        if (form) {
+          form.requestSubmit();
+        }
+      }
+    }
+  }
+
   let generateLinkForm: HTMLFormElement | undefined;
   let currentGeneratingVisit: TreatmentPlan | null = null;
 
@@ -438,6 +521,8 @@
     }
   }
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <svelte:head>
   <title>Treatment Plans - Admin</title>
@@ -596,9 +681,16 @@
           <TableBody>
             {#if table.getRowModel().rows?.length}
               {#each table.getRowModel().rows as row}
-                <TableRow data-state={row.getIsSelected() ? 'selected' : undefined} >
+                <TableRow
+                  data-state={row.getIsSelected() ? 'selected' : undefined}
+                  class={editingTreatmentPlanId === row.original.visitid ? 'bg-blue-50 editing-row' : 'cursor-pointer hover:bg-gray-50'}
+                  ondblclick={() => editingTreatmentPlanId !== row.original.visitid && startEditing(row.original)}
+                >
                   {#each row.getVisibleCells() as cell}
-                    <TableCell>
+                    {#if !(editingTreatmentPlanId === row.original.visitid && ['payment_status', 'activePlanPrice'].includes(cell.column.id))}
+                      <TableCell
+                        colspan={editingTreatmentPlanId === row.original.visitid && cell.column.id === 'notes' ? 3 : 1}
+                      >
                       {#if cell.column.id === 'select'}
                         <input
                           type="checkbox"
@@ -612,43 +704,143 @@
                         
                         <StatusTag status={status} />
                       {:else if cell.column.id === 'actions'}
-                        <div class="text-center">
-                          <DropdownMenu.Root>
-                            <DropdownMenu.Trigger>
-                              <Button variant="ghost" size="sm" class="h-8 w-8 p-0 ">
-                                <EllipsisIcon class="h-4 w-4" />
-                                <span class="sr-only">Open menu</span>
+                        {#if editingTreatmentPlanId === row.original.visitid}
+                          <!-- Inline Save/Cancel Actions -->
+                          <div class="flex items-center gap-2 justify-center">
+                            <form method="POST" action="?/updateTreatmentPlanAmount" use:enhance={() => {
+                              isUpdating = true;
+                              return handleTreatmentPlanUpdate();
+                            }}>
+                              <input type="hidden" name="treatmentPlanId" value={row.original.treatment_plan?.id || row.original.visitid} />
+                              <input type="hidden" name="visitId" value={row.original.visitid} />
+                              <input type="hidden" name="patientName" value={editingTreatmentPlan?.treatment_plan?.patient_name || ''} />
+                              <input type="hidden" name="doctorName" value={editingTreatmentPlan?.treatment_plan?.doctor_name || ''} />
+                              <input type="hidden" name="notes" value={editingTreatmentPlan?.treatment_plan?.notes || ''} />
+                              <input type="hidden" name="amountPaid" value={editingTreatmentPlan?.treatment_plan?.amount_paid || 0} />
+                              <input type="hidden" name="paymentStatus" value={row.original.treatment_plan?.payment_status || 'unpaid'} />
+                              <input type="hidden" name="activePlan" value={row.original.treatment_plan?.active_plan || 1} />
+                              <input type="hidden" name="discount" value={row.original.treatment_plan?.discount || 0} />
+                              <input type="hidden" name="insuranceCoverage" value={row.original.treatment_plan?.insurance_coverage || 0} />
+                              <input type="hidden" name="courtesyAmount" value={row.original.treatment_plan?.courtesy_amount || 0} />
+                              <input type="hidden" name="presenterId" value={row.original.treatment_plan?.presenter_id || ''} />
+                              <Button
+                                type="submit"
+                                variant="default"
+                                size="sm"
+                                class="h-7 w-7 p-0"
+                                disabled={isUpdating || !isValidTreatmentPlan(editingTreatmentPlan)}
+                              >
+                                {#if isUpdating}
+                                  <svg class="animate-spin h-3 w-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                    <path class="opacity-75" fill="currentColor" d="m4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                {:else}
+                                  <CheckIcon class="h-3 w-3" />
+                                {/if}
+                                <span class="sr-only">Save</span>
                               </Button>
-                            </DropdownMenu.Trigger>
-                          <DropdownMenu.Content align="end" class="w-48">
-                            <DropdownMenu.Item onclick={() => viewVisit(row.original)}>
-                              <EyeIcon class="mr-2 h-4 w-4" />
-                              View
-                            </DropdownMenu.Item>
-                            <DropdownMenu.Item onclick={() => editVisit(row.original)}>
-                              <EditIcon class="mr-2 h-4 w-4" />
-                              Edit
-                            </DropdownMenu.Item>
-                            <DropdownMenu.Item onclick={() => viewReport(row.original)}>
-                              <FileTextIcon class="mr-2 h-4 w-4" />
-                              Report
-                            </DropdownMenu.Item>
-                            <DropdownMenu.Item onclick={() => editAmountPaid(row.original)}>
-                              <DollarSignIcon class="mr-2 h-4 w-4" />
-                              Quick Edit
-                            </DropdownMenu.Item>
-                            <DropdownMenu.Separator />
-                            <DropdownMenu.Item onclick={() => generatePublicLink(row.original)}>
-                              <LinkIcon class="mr-2 h-4 w-4" />
-                              Generate Link
-                            </DropdownMenu.Item>
-                          </DropdownMenu.Content>
-                        </DropdownMenu.Root>
-                        </div>
-                      {:else if cell.column.id === 'notes'}
-                        <div class="max-w-xs overflow-hidden text-ellipsis whitespace-nowrap" title={row.original.treatment_plan?.notes || row.original.notes}>
+                            </form>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              class="h-7 w-7 p-0"
+                              onclick={cancelEditing}
+                              disabled={isUpdating}
+                            >
+                              <XIcon class="h-3 w-3" />
+                              <span class="sr-only">Cancel</span>
+                            </Button>
+                          </div>
+                        {:else}
+                          <div class="text-center">
+                            <DropdownMenu.Root>
+                              <DropdownMenu.Trigger>
+                                <Button variant="ghost" size="sm" class="h-8 w-8 p-0 ">
+                                  <EllipsisIcon class="h-4 w-4" />
+                                  <span class="sr-only">Open menu</span>
+                                </Button>
+                              </DropdownMenu.Trigger>
+                            <DropdownMenu.Content align="end" class="w-48">
+                              <DropdownMenu.Item onclick={() => viewVisit(row.original)}>
+                                <EyeIcon class="mr-2 h-4 w-4" />
+                                View
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Item onclick={() => editVisit(row.original)}>
+                                <EditIcon class="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Item onclick={() => startEditing(row.original)} disabled={editingTreatmentPlanId !== null}>
+                                <EditIcon class="mr-2 h-4 w-4" />
+                                Inline Edit
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Item onclick={() => viewReport(row.original)}>
+                                <FileTextIcon class="mr-2 h-4 w-4" />
+                                Report
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Item onclick={() => editAmountPaid(row.original)}>
+                                <DollarSignIcon class="mr-2 h-4 w-4" />
+                                Quick Edit
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Separator />
+                              <DropdownMenu.Item onclick={() => generatePublicLink(row.original)}>
+                                <LinkIcon class="mr-2 h-4 w-4" />
+                                Generate Link
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Separator />
+                              <DropdownMenu.Item onclick={() => deleteSingleVisit(row.original)} >
+                                <TrashIcon class="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenu.Item>
+                            </DropdownMenu.Content>
+                          </DropdownMenu.Root>
+                          </div>
+                        {/if}
+                      {:else if cell.column.id === 'patient_name'}
+                        {#if editingTreatmentPlanId === row.original.visitid && editingTreatmentPlan}
+                          <Input
+                            type="text"
+                            bind:value={editingTreatmentPlan.treatment_plan.patient_name}
+                            class="h-8 text-sm"
+                            required
+                          />
+                        {:else}
                           <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
-                        </div>
+                        {/if}
+                      {:else if cell.column.id === 'doctor_name'}
+                        <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
+                      {:else if cell.column.id === 'amount_paid'}
+                        {#if editingTreatmentPlanId === row.original.visitid && editingTreatmentPlan}
+                          <div class="relative w-24">
+                            <span class="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">$</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              bind:value={editingTreatmentPlan.treatment_plan.amount_paid}
+                              class="h-8 text-sm pl-5 pr-1 w-full"
+                              placeholder="0.00"
+                            />
+                          </div>
+                        {:else}
+                          <div class="text-center">
+                            <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
+                          </div>
+                        {/if}
+                      {:else if cell.column.id === 'notes'}
+                        {#if editingTreatmentPlanId === row.original.visitid && editingTreatmentPlan}
+                          <textarea
+                            bind:value={editingTreatmentPlan.treatment_plan.notes}
+                            class="w-full h-16 text-sm border rounded px-2 py-1 resize-none"
+                            placeholder="Enter notes..."
+                            rows="3"
+                          ></textarea>
+                        {:else}
+                          <div class="max-w-xs overflow-hidden text-ellipsis whitespace-nowrap" title={row.original.treatment_plan?.notes || row.original.notes}>
+                            <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
+                          </div>
+                        {/if}
                       {:else if cell.column.id === 'activePlanPrice'}
                         <div class="font-medium text-green-600">
                           <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
@@ -661,6 +853,7 @@
                         <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
                       {/if}
                     </TableCell>
+                    {/if}
                   {/each}
                 </TableRow>
               {/each}
@@ -758,5 +951,24 @@
     }}
   >
     <input type="hidden" name="visitIds" value="" />
+  </form>
+
+  <form
+    bind:this={singleDeleteForm}
+    method="POST"
+    action="?/deleteVisit"
+    style="display: none;"
+    use:enhance={() => {
+      return async ({ result }) => {
+        if (result.type === 'success') {
+          toastStore.success('Treatment plan deleted successfully');
+        } else if (result.type === 'failure') {
+          toastStore.error(`Failed to delete treatment plan: ${result.data?.error || 'Unknown error'}`);
+        }
+        await invalidateAll();
+      };
+    }}
+  >
+    <input type="hidden" name="visitId" value="" />
   </form>
 </div>

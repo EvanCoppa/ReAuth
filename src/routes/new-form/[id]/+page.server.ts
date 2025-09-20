@@ -257,14 +257,12 @@ async function convertFileToBase64(file: File): Promise<string> {
 }
 
 export const actions: Actions = {
-    updateVisit: async ({ request, cookies, params }) => {
-        const userId = cookies.get('userId');
-        const accessToken = cookies.get('accessToken');
+    updateVisit: async (event) => {
+        const { request, cookies, params } = event;
         const orgId = cookies.get('orgId');
-        const authenticated = cookies.get('authenticated') === 'true';
         const visitId = params.id;
 
-        if (!authenticated || !accessToken || !userId || !orgId) {
+        if (!orgId) {
             return fail(401, { error: 'User not authenticated' });
         }
 
@@ -345,7 +343,7 @@ export const actions: Actions = {
                     body: JSON.stringify(payload)
                 },
                 undefined,
-                cookies
+                event
             );
 
             if (!res.ok) {
@@ -411,7 +409,7 @@ export const actions: Actions = {
                             })
                         },
                         undefined,
-                        cookies
+                        event
                     );
 
                     if (!imgResponse.ok) {

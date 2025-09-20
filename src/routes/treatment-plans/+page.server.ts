@@ -253,9 +253,9 @@ export const load: PageServerLoad = async ({ cookies, parent }) => {
 };
 
 export const actions: Actions = {
-  generatePublicLink: async ({ request, cookies }) => {
+  generatePublicLink: async (event) => {
     try {
-      const formData = await request.formData();
+      const formData = await event.request.formData();
       const treatmentPlanId = formData.get('treatmentPlanId') as string;
       const expiresInHours = formData.get('expiresInHours') || '72';
 
@@ -275,7 +275,7 @@ export const actions: Actions = {
           })
         },
         undefined,
-        cookies
+        event
       );
 
       if (!response.ok) {
@@ -291,9 +291,9 @@ export const actions: Actions = {
     }
   },
 
-  updateTreatmentPlanAmount: async ({ request, cookies }) => {
+  updateTreatmentPlanAmount: async (event) => {
     try {
-      const formData = await request.formData();
+      const formData = await event.request.formData();
       const treatmentPlanId = formData.get('treatmentPlanId');
       const visitId = formData.get('visitId');
       const amountPaidRaw = formData.get('amountPaid');
@@ -342,7 +342,7 @@ export const actions: Actions = {
           body: JSON.stringify(updatedTreatmentPlan)
         },
         undefined,
-        cookies
+        event
       );
 
       if (!response.ok) {
@@ -365,9 +365,9 @@ export const actions: Actions = {
     }
   },
 
-  updateVisitPayment: async ({ request, cookies }) => {
+  updateVisitPayment: async (event) => {
     try {
-      const formData = await request.formData();
+      const formData = await event.request.formData();
       const visitId = formData.get('visitId') as string;
       const paid = formData.get('paid') === 'true';
 
@@ -385,7 +385,7 @@ export const actions: Actions = {
           body: JSON.stringify({ paid })
         },
         undefined,
-        cookies
+        event
       );
 
       if (!response.ok) {
@@ -400,9 +400,9 @@ export const actions: Actions = {
     }
   },
 
-  updateVisitNotes: async ({ request, cookies }) => {
+  updateVisitNotes: async (event) => {
     try {
-      const formData = await request.formData();
+      const formData = await event.request.formData();
       const visitId = formData.get('visitId') as string;
       const notes = formData.get('notes') as string;
 
@@ -420,7 +420,7 @@ export const actions: Actions = {
           body: JSON.stringify({ notes })
         },
         undefined,
-        cookies
+        event
       );
 
       if (!response.ok) {
@@ -435,9 +435,9 @@ export const actions: Actions = {
     }
   },
 
-  deleteVisit: async ({ request, cookies }) => {
+  deleteVisit: async (event) => {
     try {
-      const formData = await request.formData();
+      const formData = await event.request.formData();
       const visitId = formData.get('visitId') as string;
 
       if (!visitId) {
@@ -450,7 +450,7 @@ export const actions: Actions = {
           method: 'DELETE'
         },
         undefined,
-        cookies
+        event
       );
 
       if (!response.ok) {
@@ -465,9 +465,9 @@ export const actions: Actions = {
     }
   },
 
-  batchUpdatePayment: async ({ request, cookies }) => {
+  batchUpdatePayment: async (event) => {
     try {
-      const formData = await request.formData();
+      const formData = await event.request.formData();
       const visitIds = JSON.parse(formData.get('visitIds') as string);
       const paid = formData.get('paid') === 'true';
 
@@ -504,9 +504,9 @@ export const actions: Actions = {
     }
   },
 
-  batchDelete: async ({ request, cookies }) => {
+  batchDelete: async (event) => {
     try {
-      const formData = await request.formData();
+      const formData = await event.request.formData();
       const visitIds = JSON.parse(formData.get('visitIds') as string);
 
       if (!Array.isArray(visitIds) || visitIds.length === 0) {
