@@ -31,7 +31,6 @@
   import FileTextIcon from "@lucide/svelte/icons/file-text";
   import DollarSignIcon from "@lucide/svelte/icons/dollar-sign";
   import LinkIcon from "@lucide/svelte/icons/link";
-  import RefreshCwIcon from "@lucide/svelte/icons/refresh-cw";
   import ChevronDownIcon from "@lucide/svelte/icons/chevron-down";
   import TrashIcon from "@lucide/svelte/icons/trash";
   import CheckIcon from "@lucide/svelte/icons/check";
@@ -487,15 +486,6 @@
     }
   }
 
-  async function refreshData() {
-    try {
-      await invalidateAll();
-      toastStore.success('Data refreshed successfully');
-    } catch (err) {
-      console.error('Failed to refresh data', err);
-      toastStore.error('Failed to refresh data');
-    }
-  }
 
   function handleBatchResult(result: any, action: string) {
     if (result?.type === 'success') {
@@ -592,14 +582,6 @@
     </div>
     
     <div class="flex items-center gap-2">
-      <Button 
-        onclick={refreshData}
-        variant="outline"
-        size="sm"
-        title="Refresh data"
-      >
-        <RefreshCwIcon class="h-4 w-4" />
-      </Button>
       <Button 
         onclick={markSelectedAsPaid}
         variant="default"
@@ -832,7 +814,7 @@
                         {#if editingTreatmentPlanId === row.original.visitid && editingTreatmentPlan}
                           <textarea
                             bind:value={editingTreatmentPlan.treatment_plan.notes}
-                            class="w-full h-16 text-sm border rounded px-2 py-1 resize-none"
+                            class="w-full h-16 text-sm border rounded px-2 py-1 resize-none bg-white"
                             placeholder="Enter notes..."
                             rows="3"
                           ></textarea>

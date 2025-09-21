@@ -14,18 +14,28 @@ const profileSchema = z.object({
 	email: z.string().email().optional()
 });
 
-export const load: PageServerLoad = async ({ fetch, cookies }) => {
-	// Get session from cookies
-	const sessionId = cookies.get('sessionId');
-	if (!sessionId) {
-		throw redirect(302, '/login');
-	}
-
+export const load: PageServerLoad = async ({ fetch, cookies, parent }) => {
 	try {
+		// Get session data from parent layout
+		const { session } = await parent();
+
+		console.log('[Profile] Page load - Session check:', {
+			hasSession: !!session,
+			hasUser: !!session?.user,
+			hasAccessToken: !!session?.access_token,
+			userId: session?.user?.id
+		});
+
+		// If no valid session, redirect to login
+		if (!session?.access_token || !session?.user) {
+			console.log('[Profile] No valid session - redirecting to login');
+			throw redirect(302, '/login');
+		}
+
 		// Fetch provider profile data
 		const response = await fetch(`https://smile-design-manhattan-api.vercel.app/api/providers/profile`, {
 			headers: {
-				'Authorization': `Bearer ${sessionId}`,
+				'Authorization': `Bearer ${session.access_token}`,
 				'Content-Type': 'application/json'
 			}
 		});
@@ -38,7 +48,7 @@ export const load: PageServerLoad = async ({ fetch, cookies }) => {
 		// Fetch provider's slide templates
 		const slidesResponse = await fetch(`https://smile-design-manhattan-api.vercel.app/api/slide-templates/provider`, {
 			headers: {
-				'Authorization': `Bearer ${sessionId}`,
+				'Authorization': `Bearer ${session.access_token}`,
 				'Content-Type': 'application/json'
 			}
 		});
@@ -56,6 +66,9 @@ export const load: PageServerLoad = async ({ fetch, cookies }) => {
 			slideTemplates
 		};
 	} catch (error) {
+		if (error instanceof Response && error.status === 302) {
+			throw error; // Re-throw redirect responses
+		}
 		console.error('Error loading provider profile:', error);
 		const form = await superValidate({}, zod(profileSchema));
 		return {
@@ -68,23 +81,26 @@ export const load: PageServerLoad = async ({ fetch, cookies }) => {
 
 export const actions: Actions = {
 	updateProfile: async (event) => {
-		const { request, fetch, cookies } = event;
-		const sessionId = cookies.get('sessionId');
-		if (!sessionId) {
-			return fail(401, { error: 'Not authenticated' });
-		}
-
-		const form = await superValidate(request, zod(profileSchema));
-
-		if (!form.valid) {
-			return fail(400, { form });
-		}
+		const { request, fetch, cookies, parent } = event;
 
 		try {
+			// Get session data from parent layout
+			const { session } = await parent();
+
+			if (!session?.access_token || !session?.user) {
+				return fail(401, { error: 'Not authenticated' });
+			}
+
+			const form = await superValidate(request, zod(profileSchema));
+
+			if (!form.valid) {
+				return fail(400, { form });
+			}
+
 			const response = await fetch(`https://smile-design-manhattan-api.vercel.app/api/providers/profile`, {
 				method: 'PUT',
 				headers: {
-					'Authorization': `Bearer ${sessionId}`,
+					'Authorization': `Bearer ${session.access_token}`,
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify(form.data)
@@ -106,20 +122,23 @@ export const actions: Actions = {
 		} catch (error) {
 			console.error('Error updating profile:', error);
 			return fail(500, {
-				form,
+				form: await superValidate({}, zod(profileSchema)),
 				error: 'Server error occurred'
 			});
 		}
 	},
 
 	uploadProfilePhoto: async (event) => {
-		const { request, fetch, cookies } = event;
-		const sessionId = cookies.get('sessionId');
-		if (!sessionId) {
-			return fail(401, { error: 'Not authenticated' });
-		}
+		const { request, fetch, cookies, parent } = event;
 
 		try {
+			// Get session data from parent layout
+			const { session } = await parent();
+
+			if (!session?.access_token || !session?.user) {
+				return fail(401, { error: 'Not authenticated' });
+			}
+
 			const formData = await request.formData();
 			const photo = formData.get('photo') as File;
 
@@ -134,7 +153,7 @@ export const actions: Actions = {
 			const response = await fetch(`https://smile-design-manhattan-api.vercel.app/api/providers/profile/photo`, {
 				method: 'POST',
 				headers: {
-					'Authorization': `Bearer ${sessionId}`
+					'Authorization': `Bearer ${session.access_token}`
 				},
 				body: uploadFormData
 			});
