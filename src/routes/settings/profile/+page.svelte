@@ -20,6 +20,10 @@
 	// Form element references
 	let profileForm = $state<HTMLFormElement>();
 	let photoForm = $state<HTMLFormElement>();
+	let createSlideShowForm = $state<HTMLFormElement>();
+
+	// Loading states
+	let isCreatingSlideShow = $state(false);
 
 
 	// $effect(() => {
@@ -63,20 +67,72 @@
 		profilePhotoInput?.click();
 	}
 
-	function handleSlideUpload(event: CustomEvent<{ slideId: string; dropIndex: number; file: File }>) {
-		const { slideId, dropIndex, file } = event.detail;
-		console.log(`Uploading file for slide ${slideId}, position ${dropIndex}:`, file.name);
+	async function handleSlideUpload(event: CustomEvent<{ slideType: string; position: number; file: File }>) {
+		const { slideType, position, file } = event.detail;
+		console.log(`Uploading file for slide ${slideType}, position ${position}:`, file.name);
 
-		// Here you would typically upload the file to your server
-		// For now, we'll just log it
+		try {
+			const formData = new FormData();
+			formData.set('slideType', slideType);
+			formData.set('position', position.toString());
+			formData.set('image', file);
+
+			const response = await fetch('?/uploadSlideImage', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (response.ok) {
+				// Invalidate cache to refresh data
+				await invalidateAll();
+				console.log('Slide image uploaded successfully');
+			} else {
+				console.error('Failed to upload slide image');
+			}
+		} catch (error) {
+			console.error('Error uploading slide image:', error);
+		}
  	}
 
-	function handleSlideRemove(event: CustomEvent<{ slideId: string; dropIndex: number }>) {
-		const { slideId, dropIndex } = event.detail;
-		console.log(`Removing image from slide ${slideId}, position ${dropIndex}`);
+	async function handleSlideRemove(event: CustomEvent<{ slideType: string; position: number }>) {
+		const { slideType, position } = event.detail;
+		console.log(`Removing image from slide ${slideType}, position ${position}`);
 
-		// Here you would typically remove the file from your server
+		try {
+			const formData = new FormData();
+			formData.set('slideType', slideType);
+			formData.set('position', position.toString());
+
+			const response = await fetch('?/removeSlideImage', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (response.ok) {
+				// Invalidate cache to refresh data
+				await invalidateAll();
+				console.log('Slide image removed successfully');
+			} else {
+				console.error('Failed to remove slide image');
+			}
+		} catch (error) {
+			console.error('Error removing slide image:', error);
+		}
  	}
+
+	function handleCreateSlideShow() {
+		console.log('ProfilePage: handleCreateSlideShow called');
+		console.log('ProfilePage: Creating new slide show - form submission triggered');
+
+		if (createSlideShowForm) {
+			console.log('ProfilePage: Found form, submitting...');
+			isCreatingSlideShow = true;
+			createSlideShowForm.requestSubmit();
+			console.log('ProfilePage: Form submission requested');
+		} else {
+			console.error('ProfilePage: Create slide show form not found');
+		}
+	}
 </script>
 
 <div class="min-h-screen bg-gray-100">
@@ -161,6 +217,30 @@
 				accept="image/*"
 				onchange={handlePhotoChange}
 			/>
+		</form>
+
+		<!-- Hidden create slide show form -->
+		<form
+			bind:this={createSlideShowForm}
+			method="POST"
+			action="?/createSlideShow"
+			use:enhance={() => {
+				console.log('Create slide show form enhance triggered');
+				return async ({ result, update }) => {
+					console.log('Create slide show result:', result);
+					isCreatingSlideShow = false;
+
+					if (result.type === "success") {
+						console.log('Slide show created successfully, invalidating cache');
+						await invalidateAll();
+					} else if (result.type === "failure") {
+						console.error('Failed to create slide show:', result.data?.error);
+					}
+					update();
+				};
+			}}
+			class="hidden"
+		>
 		</form>
 
 		<!-- Tab Content -->
@@ -331,8 +411,12 @@
 				<!-- Slide Gallery -->
 				<div class="col-span-12">
 					<SlideGallery
+						slideData={data.slideData}
+						hasExistingPresentation={data.hasExistingPresentation}
+						isCreatingSlideShow={isCreatingSlideShow}
 						on:upload={handleSlideUpload}
 						on:remove={handleSlideRemove}
+						on:createSlideShow={handleCreateSlideShow}
 					/>
 				</div>
 			{/if}

@@ -7,7 +7,7 @@
   import { type SuperValidated, type Infer, superForm } from "sveltekit-superforms";
   import { zodClient } from "sveltekit-superforms/adapters";
   import { page } from '$app/stores';
-  import { toastStore } from "$lib/stores/toast";
+  import { toastStore } from "$lib/toast";
 
   let { data }: { data: { form: SuperValidated<Infer<FormSchema>>, inviteCode?: string } } = $props();
 
